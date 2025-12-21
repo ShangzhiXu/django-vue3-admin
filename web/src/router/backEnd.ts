@@ -71,6 +71,20 @@ export async function setRouters(){
 	frameOutRouter.forEach((item:any)=>{
 		router.addRoute(item)
 	})
+	// 添加工单详情页路由（动态路由，不在菜单中显示）
+	router.addRoute({
+		path: '/workorder/detail/:id',
+		name: 'workorderDetail',
+		component: () => import('/@/views/plugins/workorder/detail.vue'),
+		meta: {
+			title: '工单详情',
+			isHide: true, // 不在菜单中显示
+			isKeepAlive: false,
+			isAffix: false,
+			isIframe: false,
+			roles: ['admin'],
+		},
+	});
 	const storesRoutesList = useRoutesList(pinia);
 	storesRoutesList.setRoutesList([...dynamicRoutes[0].children,...frameOutRouter]);
 	const storesTagsView = useTagsViewRoutes(pinia);
@@ -120,6 +134,20 @@ export function setFilterRouteEnd() {
 export async function setAddRoute() {
 	await setFilterRouteEnd().forEach((route: RouteRecordRaw) => {
 		router.addRoute(route);
+	});
+	// 添加工单详情页路由（动态路由，不在菜单中显示）
+	router.addRoute({
+		path: '/workorder/detail/:id',
+		name: 'workorderDetail',
+		component: () => import('/@/views/plugins/workorder/detail.vue'),
+		meta: {
+			title: '工单详情',
+			isHide: true, // 不在菜单中显示
+			isKeepAlive: false,
+			isAffix: false,
+			isIframe: false,
+			roles: ['admin'],
+		},
 	});
 }
 

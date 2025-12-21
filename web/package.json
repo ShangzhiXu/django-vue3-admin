@@ -1,6 +1,7 @@
 {
 	"name": "django-vue3-admin",
 	"version": "3.2.0",
+	"type": "module",
 	"description": "是一套全部开源的快速开发平台，毫无保留给个人免费使用、团体授权使用。\n    django-vue3-admin 基于RBAC模型的权限控制的一整套基础开发平台，权限粒度达到列级别，前后端分离，后端采用django + django-rest-framework，前端采用基于 vue3 + CompositionAPI + typescript + vite + element plus",
 	"license": "MIT",
 	"scripts": {
@@ -21,7 +22,7 @@
 		"@iconify/vue": "^4.1.2",
 		"@meetjs/vant4-kit": "^1.0.1",
 		"@types/lodash": "^4.17.7",
-		"@vitejs/plugin-vue-jsx": "^4.0.1",
+		"@vitejs/plugin-vue-jsx": "^4.0.0",
 		"@wangeditor/editor": "^5.1.23",
 		"@wangeditor/editor-for-vue": "^5.1.12",
 		"autoprefixer": "^10.4.20",
@@ -84,7 +85,7 @@
 		"prettier": "^2.8.1",
 		"sass": "^1.56.2",
 		"typescript": "^4.9.4",
-		"vite": "^5.4.1",
+		"vite": "^5.4.11",
 		"vite-plugin-vue-setup-extend": "^0.4.0",
 		"vue-eslint-parser": "^9.4.3"
 	},

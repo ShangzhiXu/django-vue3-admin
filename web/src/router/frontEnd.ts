@@ -45,6 +45,20 @@ export async function setAddRoute() {
 	await setFilterRouteEnd().forEach((route: RouteRecordRaw) => {
 		router.addRoute(route);
 	});
+	// 添加工单详情页路由（动态路由，不在菜单中显示）
+	router.addRoute({
+		path: '/workorder/detail/:id',
+		name: 'workorderDetail',
+		component: () => import('/@/views/plugins/workorder/detail.vue'),
+		meta: {
+			title: '工单详情',
+			isHide: true, // 不在菜单中显示
+			isKeepAlive: false,
+			isAffix: false,
+			isIframe: false,
+			roles: ['admin'],
+		},
+	});
 }
 
 /**

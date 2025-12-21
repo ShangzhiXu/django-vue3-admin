@@ -1,7 +1,7 @@
 <template>
 	<div class="layout-logo" v-if="setShowLogo" @click="onThemeConfigChange">
 		<img :src="siteLogo" class="layout-logo-medium-img" />
-		<span style="font-size: x-large">{{ getSystemConfig['login.site_title'] || themeConfig.globalTitle }}</span>
+		<span style="font-size: large">{{ getSystemConfig['login.site_title'] || themeConfig.globalTitle }}</span>
 	</div>
 	<div class="layout-logo-size" v-else @click="onThemeConfigChange">
 		<img :src="siteLogo" class="layout-logo-size-img" />
@@ -12,7 +12,7 @@
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '/@/stores/themeConfig';
-import logoMini from '/@/assets/logo-mini.svg';
+import logoMini from '/@/assets/logo-mini.png';
 import { SystemConfigStore } from "/@/stores/systemConfig";
 import _ from "lodash-es";
 // 定义变量内容

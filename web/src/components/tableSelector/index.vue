@@ -2,8 +2,8 @@
 	<el-select
 		popper-class="popperClass"
 		class="tableSelector"
-		multiple
-    :collapseTags="props.tableConfig.collapseTags"
+		:multiple="props.tableConfig.isMultiple"
+		:collapseTags="props.tableConfig.collapseTags"
 		v-model="data"
 		placeholder="请选择"
 		@visible-change="visibleChange"
@@ -29,11 +29,11 @@
 					height="200"
 					:highlight-current-row="!props.tableConfig.isMultiple"
 					@selection-change="handleSelectionChange"
-					@select="handleSelectionChange"
+					@select="handleSelect"
 					@selectAll="handleSelectionChange"
 					@current-change="handleCurrentChange"
 				>
-					<el-table-column v-if="props.tableConfig.isMultiple" fixed type="selection" reserve-selection width="55" />
+					<el-table-column fixed type="selection" reserve-selection width="55" :selectable="getSelectable" />
 					<el-table-column fixed type="index" label="#" width="50" />
 					<el-table-column
 						:prop="item.prop"
@@ -107,29 +107,73 @@ const pageConfig = reactive({
 });
 
 /**
+ * 判断行是否可选（用于单选模式限制只能选一个）
+ */
+const getSelectable = (row: any, index: number) => {
+	return true;
+};
+
+/**
+ * 表格选择事件（单选模式下的处理）
+ */
+const handleSelect = (selection: any, row: any) => {
+	const { tableConfig } = props;
+	if (!tableConfig.isMultiple) {
+		// 单选模式：如果选择了多个，清除其他选择，只保留当前点击的行
+		if (selection.length > 1) {
+			// 使用 nextTick 确保在 DOM 更新后执行
+			setTimeout(() => {
+				tableRef.value!.clearSelection();
+				tableRef.value!.toggleRowSelection(row, true);
+			}, 0);
+		}
+	}
+};
+
+/**
  * 表格多选
  * @param val:Array
  */
 const handleSelectionChange = (val: any) => {
 	const { tableConfig } = props;
-	const result = val.map((item: any) => {
-		return item[tableConfig.value];
-	});
-	data.value = val.map((item: any) => {
-		return item[tableConfig.label];
-	});
-
-	emit('update:modelValue', result);
+	if (tableConfig.isMultiple) {
+		// 多选模式
+		const result = val.map((item: any) => {
+			return item[tableConfig.value];
+		});
+		data.value = val.map((item: any) => {
+			return item[tableConfig.label];
+		});
+		emit('update:modelValue', result);
+	} else {
+		// 单选模式：只取最后一个选择
+		if (val && val.length > 0) {
+			const selectedRow = val[val.length - 1]; // 取最后一个
+			// 如果选择了多个，清除其他选择
+			if (val.length > 1) {
+				setTimeout(() => {
+					tableRef.value!.clearSelection();
+					tableRef.value!.toggleRowSelection(selectedRow, true);
+				}, 0);
+			}
+			data.value = selectedRow[tableConfig.label];
+			emit('update:modelValue', selectedRow[tableConfig.value]);
+		} else {
+			emit('update:modelValue', null);
+		}
+	}
 };
 /**
- * 表格单选
+ * 表格单选（点击行时触发，保留作为备用）
  * @param val:Object
  */
 const handleCurrentChange = (val: any) => {
 	const { tableConfig } = props;
 	if (!tableConfig.isMultiple && val) {
-		// data.value = [val[tableConfig.label]];
-		emit('update:modelValue', val[tableConfig.value]);
+		// 如果通过点击行选择，也触发选择
+		tableRef.value!.clearSelection();
+		tableRef.value!.toggleRowSelection(val, true);
+		handleSelectionChange([val]);
 	}
 };
 
@@ -163,35 +207,96 @@ const getDict = async () => {
 	}
 };
 
-// 获取节点值
-const getNodeValues = () => {
-	console.log(props.tableConfig.url);
+// 获取节点值（用于回显已选择的值）
+const getNodeValues = async () => {
+	if (!props.modelValue) {
+		return;
+	}
 	
-	request({
-		url: props.tableConfig.url,
-		method: 'post',
-		data: { ids: props.modelValue },
-	}).then((res) => {
-		if (res.data.length > 0) {
-			data.value = res.data.map((item: any) => {
-				return item[props.tableConfig.label];
-			});
-
-			tableRef.value!.clearSelection();
-			res.data.forEach((row) => {
-				tableRef.value!.toggleRowSelection(row, true, false);
-			});
+	const ids = Array.isArray(props.modelValue) ? props.modelValue : [props.modelValue];
+	if (ids.length === 0 || ids.every(id => id === null || id === undefined)) {
+		return;
+	}
+	
+	try {
+		// 先通过 get_by_ids 接口获取已选择的数据
+		const res = await request({
+			url: props.tableConfig.url + 'get_by_ids/',
+			method: 'post',
+			data: { ids: ids },
+		});
+		
+		if (res.data && res.data.length > 0) {
+			// 设置显示值
+			if (props.tableConfig.isMultiple) {
+				data.value = res.data.map((item: any) => {
+					return item[props.tableConfig.label];
+				});
+			} else {
+				data.value = res.data[0][props.tableConfig.label];
+			}
+			
+			// 等待表格数据加载完成后再选中
+			await getDict();
+			
+			// 选中对应的行
+			setTimeout(() => {
+				if (tableRef.value && tableData.value.length > 0) {
+					tableRef.value.clearSelection();
+					res.data.forEach((row: any) => {
+						// 在表格数据中查找对应的行
+						const tableRow = tableData.value.find((item: any) => item.id === row.id);
+						if (tableRow) {
+							tableRef.value!.toggleRowSelection(tableRow, true, false);
+						}
+					});
+				}
+			}, 200);
 		}
-	});
+	} catch (error) {
+		// 如果 get_by_ids 接口不存在，尝试从当前表格数据中查找
+		console.warn('获取节点值失败，尝试从当前数据中查找:', error);
+		// 等待表格数据加载
+		await getDict();
+		// 从当前表格数据中查找并选中
+		setTimeout(() => {
+			if (tableRef.value && tableData.value.length > 0) {
+				tableRef.value.clearSelection();
+				const idsToFind = Array.isArray(props.modelValue) ? props.modelValue : [props.modelValue];
+				idsToFind.forEach((id: any) => {
+					const tableRow = tableData.value.find((item: any) => item.id === id);
+					if (tableRow) {
+						tableRef.value!.toggleRowSelection(tableRow, true, false);
+						// 设置显示值
+						if (props.tableConfig.isMultiple) {
+							if (!Array.isArray(data.value)) {
+								data.value = [];
+							}
+							if (!data.value.includes(tableRow[props.tableConfig.label])) {
+								data.value.push(tableRow[props.tableConfig.label]);
+							}
+						} else {
+							data.value = tableRow[props.tableConfig.label];
+						}
+					}
+				});
+			}
+		}, 200);
+	}
 };
 
 /**
  * 下拉框展开/关闭
  * @param bool
  */
-const visibleChange = (bool: any) => {
+const visibleChange = async (bool: any) => {
 	if (bool) {
-		getDict();
+		// 先加载数据
+		await getDict();
+		// 如果有已选择的值，回显选中状态
+		if (props.modelValue) {
+			await getNodeValues();
+		}
 	}
 };
 
@@ -204,10 +309,33 @@ const handlePageChange = (page: any) => {
 	getDict();
 };
 
+// 监听 modelValue 变化，更新显示值
+watch(
+	() => props.modelValue,
+	(newVal) => {
+		if (newVal) {
+			// 如果已经有值，需要获取对应的显示文本
+			const ids = Array.isArray(newVal) ? newVal : [newVal];
+			if (ids.length > 0 && !ids.every(id => id === null || id === undefined)) {
+				// 延迟执行，确保组件已初始化
+				setTimeout(() => {
+					getNodeValues();
+				}, 100);
+			}
+		} else {
+			data.value = props.tableConfig.isMultiple ? [] : null;
+		}
+	},
+	{ immediate: true }
+);
+
 onMounted(() => {
-	// setTimeout(() => {
-	// 	getNodeValues();
-	// }, 1000);
+	// 组件挂载后，如果有初始值，加载并回显
+	if (props.modelValue) {
+		setTimeout(() => {
+			getNodeValues();
+		}, 200);
+	}
 });
 </script>
 

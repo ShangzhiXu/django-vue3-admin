@@ -157,8 +157,14 @@ router.beforeEach(async (to, from, next) => {
 });
 
 // 路由加载后
-router.afterEach(() => {
+router.afterEach((to, from) => {
     NProgress.done();
+    // 如果跳转到首页且不是从首页跳转过来的，触发首页数据刷新（无感刷新）
+    if (to.path === '/home' && from.path !== '/home' && from.path !== '/') {
+        // 使用自定义事件通知首页组件刷新数据，而不是刷新整个页面
+        // 首页组件已经监听了这个事件，会自动刷新数据
+        window.dispatchEvent(new CustomEvent('home-refresh'));
+    }
 });
 
 // 导出路由

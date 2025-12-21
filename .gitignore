@@ -7,3 +7,25 @@
 web/package-lock.json
 
 *.bat
+# Python
+__pycache__/
+*.pyc
+.env
+venv/
+.env.*
+
+# Django
+db.sqlite3
+staticfiles/
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
