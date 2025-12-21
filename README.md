@@ -1,175 +1,326 @@
-# Django-Vue3-Admin
+# 政府监管信息管理系统
 
-[![img](https://img.shields.io/badge/license-MIT-blue.svg)](https://gitee.com/huge-dream/django-vue3-admin/blob/master/LICENSE)  [![img](https://img.shields.io/badge/python-%3E=3.7.x-green.svg)](https://python.org/)  [![PyPI - Django Version badge](https://img.shields.io/badge/django%20versions-3.2-blue)](https://docs.djangoproject.com/zh-hans/3.2/) [![img](https://img.shields.io/badge/node-%3E%3D%2012.0.0-brightgreen)](https://nodejs.org/zh-cn/) [![img](https://gitee.com/huge-dream/django-vue3-admin/badge/star.svg?theme=dark)](https://gitee.com/huge-dream/django-vue3-admin)
+## 系统概述
 
-[preview](https://demo.dvadmin.com) | [Official website document](https://www.django-vue-admin.com) | [qq group](https://qm.qq.com/cgi-bin/qm/qr?k=fOdnHhC8DJlRHGYSnyhoB8P5rgogA6Vs&jump_from=webapi) | [community](https://bbs.django-vue-admin.com) | [plugins market](https://bbs.django-vue-admin.com/plugMarket.html) | [Github](https://github.com/liqianglog/django-vue-admin)
+本系统是一套基于Django和Vue3技术栈开发的政府监管信息管理平台，采用前后端分离架构，旨在为政府监管部门提供商户管理、检查任务管理、工单处理、督办推送等核心业务功能，实现监管工作的数字化、规范化和高效化。
 
-💡 **「About」**
+## 技术架构
 
-It is a completely open-source rapid development platform, provided free for personal use and authorized for group use.
-Django-Vue3-Admin is a comprehensive basic development platform based on the RBAC (Role-Based Access Control) model for permission control, with column-level granularity. It follows a frontend-backend separation architecture, with Django and Django Rest Framework used for the backend, and Vue3, Composition API, TypeScript, Vite, and Element Plus used for the frontend.
+### 后端技术栈
+- **框架**: Django 3.2+ / Django REST Framework
+- **数据库**: MySQL 8.0+ (推荐) / SQLite3 (开发环境)
+- **认证**: Django REST Framework SimpleJWT
+- **权限控制**: 基于RBAC模型的细粒度权限控制，支持列级权限
 
+### 前端技术栈
+- **框架**: Vue 3 + TypeScript + Composition API
+- **构建工具**: Vite
+- **UI组件库**: Element Plus
+- **状态管理**: Pinia
+- **路由**: Vue Router
 
-## framework introduction
+## 核心功能模块
 
-💡 [django-vue3-admin](https://gitee.com/huge-dream/django-vue3-admin.git) Is a set of all open source rapid development platform, no reservation for individuals and enterprises free use.
+### 一、商户管理模块
 
-* 🧑‍🤝‍🧑Front-end adoption Vue3+TS+pinia+fastcrud。
-* 👭The backend uses the Python language Django framework as well as the powerful[Django REST Framework](https://pypi.org/project/djangorestframework)。
-* 👫Permission authentication use[Django REST Framework SimpleJWT](https://pypi.org/project/djangorestframework-simplejwt)，Supports the multi-terminal authentication system.
-* 👬Support loading dynamic permission menu, multi - way easy permission control.
-* 👬Enhanced Column Permission Control, with granularity down to each column.
-* 💏Special thanks: [vue-next-admin](https://lyt-top.gitee.io/vue-next-admin-doc-preview/).
-* 💡Special thanks:[jetbrains](https://www.jetbrains.com/) To provide a free IntelliJ IDEA license for this open source project.
+**功能描述**: 对辖区内商户信息进行统一管理，建立商户档案数据库。
 
-## Online experience
+**主要功能**:
+- 商户基本信息录入与维护（商户名称、负责人、联系电话、地址等）
+- 商户唯一标识码自动生成与管理
+- 商户二维码生成与下载
+- GPS状态管理
+- 商户信息查询、筛选与导出
+- 商户数据统计分析
 
-👩‍👧‍👦👩‍👧‍👦 demo address:[https://demo.dvadmin.com](https://demo.dvadmin.com)
+**业务价值**: 建立完整的商户档案体系，为后续检查任务和工单管理提供基础数据支撑。
 
-* demo account：superadmin
+### 二、任务管理模块
 
-* demo password：admin123456
+**功能描述**: 对检查任务进行全生命周期管理，支持周期性任务配置。
 
-👩‍👦‍👦docs:[https://django-vue-admin.com](https://django-vue-admin.com)
+**主要功能**:
+- 检查任务创建与配置（任务名称、负责人、周期、时间范围、检查项等）
+- 任务周期设置（不重复、每日、每周、每月、每年、自定义）
+- 任务关联商户管理（支持多商户关联）
+- 任务状态管理（待执行、执行中、已完成、已暂停、已取消）
+- 任务查询、筛选与导出
+- 任务关联工单统计
 
-## communication
+**业务价值**: 实现检查任务的规范化管理，支持周期性检查任务的自动生成，提高监管工作的计划性和系统性。
 
-* Communication community:[click here](https://bbs.django-vue-admin.com)👩‍👦‍👦
+### 三、工单管理模块
 
-* plugins market:[click here](https://bbs.django-vue-admin.com/plugMarket.html)👩‍👦‍👦
+**功能描述**: 对检查过程中发现的问题进行工单化管理，实现问题整改的全程跟踪。
 
-## source code url:
+**主要功能**:
+- 工单自动生成（工单号自动生成，格式：WO+年月日+序号）
+- 工单信息管理（关联商户、关联任务、项目、隐患等级、问题描述等）
+- 工单状态流转（待整改、待复查、已逾期）
+- 工单督办功能（单个督办、批量督办）
+- 工单逾期自动识别与状态更新
+- 工单查询、筛选与导出
+- 工单详情查看与管理操作
 
-gitee(Main push)：[https://gitee.com/huge-dream/django-vue3-admin](https://gitee.com/huge-dream/django-vue3-admin)👩‍👦‍👦
+**业务价值**: 实现问题整改的闭环管理，确保发现的问题得到及时有效的整改，提高监管工作的实效性。
 
-github：[https://github.com/huge-dream/django-vue3-admin](https://github.com/huge-dream/django-vue3-admin)👩‍👦‍👦
+### 四、督办推送模块
 
-## core function
+**功能描述**: 对严重逾期工单进行统一筛选和督办推送，向监管单位发送正式督办通知。
 
-1. 👨‍⚕️Menu Management: Configure system menus, operation permissions, button permission flags, backend interface permissions, etc.
-2. 🧑‍⚕️Department Management: Configure system organizational structure (company, department, role).
-3. 👩‍⚕️Role Management: Role menu permission assignment, data permission assignment, set role-based data scope permissions by department.
-4. 🧑‍🎓Button Permission Control: Authorize role-specific button permissions and interface permissions, enabling authorization of data scope for each interface.
-5. 🧑‍🎓Field Column Permission Control: Authorize page field display permissions, specifically for the display permissions of a certain column.
-6. 👨‍🎓User Management: Users are system operators, and this function is mainly used for system user configuration.
-7. 👬API Whitelist: Configure interfaces that do not require permission verification.
-8. 🧑‍🔧Dictionary Management: Maintain frequently used and relatively fixed data in the system.
-9. 🧑‍🔧Region Management: Manage provinces, cities, counties, and districts.
-10. 📁File Management: Unified management of all files, images, etc., on the platform.
-11. 🗓️Operation Logs: Record and query logs for normal system operations and exceptional system information.
-12. 🔌[Plugin Market](https://bbs.django-vue-admin.com/plugMarket.html): Applications and plugins developed based on the Django-Vue-Admin framework.
+**主要功能**:
+- 待督办工单筛选（支持按逾期时长、隐患等级、工单状态筛选）
+- 督办工单列表展示（显示逾期时长、滞后级别、最后反馈等信息）
+- 批量督办推送（支持多工单批量推送）
+- 推送记录管理（推送标题、监管单位、推送方式、推送状态、推送内容等）
+- 推送历史查询
+- 督办推送统计
 
-## plugins market 🔌
+**业务价值**: 建立督办机制，对严重逾期工单进行重点督办，确保重要问题得到及时处理，提高监管工作的严肃性和权威性。
 
-Updating...
+### 五、数据大屏模块
 
-## Repository Branch Explanation 💈
-Main Branch: master (stable version)
-Development Branch: develop
+**功能描述**: 以可视化方式展示监管工作的关键指标和实时动态。
 
-## before start project you need:
+**主要功能**:
+- 今日概览（计划检查、已完成、发现隐患）
+- 问题类型分布统计（消防、卫生、证照、其他）
+- 实时预警动态展示
+- 数据自动刷新（每30秒）
 
-~~~
-Python >= 3.11.0 (Minimum version 3.9+)
-Node.js >= 16.0
-Mysql >= 8.0 (Optional, default database: SQLite3, supports 5.7+, recommended version: 8.0)
-Redis (Optional, latest version)
-~~~
+**业务价值**: 为领导决策提供直观的数据支撑，实现监管工作的可视化展示。
 
-## frontend♝
+### 六、首页统计模块
+
+**功能描述**: 展示系统关键业务指标和趋势分析。
+
+**主要功能**:
+- 总商户数统计及趋势分析
+- 今日检查完成率统计及环比分析
+- 待整改隐患数量统计
+- 本月活跃巡检员统计
+- 近7日检查趋势图表
+- 最新动态展示
+
+**业务价值**: 为管理人员提供系统运行状况的全面视图，支持数据驱动的管理决策。
+
+### 七、系统管理模块
+
+**功能描述**: 提供系统基础配置和权限管理功能。
+
+**主要功能**:
+- 菜单管理：配置系统菜单、操作权限、按钮权限标识、后端接口权限
+- 部门管理：配置系统组织机构（公司、部门、角色）
+- 角色管理：角色菜单权限分配、数据权限分配、设置角色按部门进行数据范围权限划分
+- 用户管理：系统用户配置与管理
+- 按钮权限控制：授权角色的按钮权限和接口权限
+- 字段列权限控制：授权页面的字段显示权限
+- 接口白名单：配置不需要进行权限校验的接口
+- 字典管理：对系统中经常使用的一些较为固定的数据进行维护
+- 地区管理：对省市县区域进行管理
+- 附件管理：对平台上所有文件、图片等进行统一管理
+- 操作日志：系统正常操作日志记录和查询；系统异常信息日志记录和查询
+
+## 角色权限体系
+
+### 一、超级管理员（Superuser）
+
+**角色定义**: 系统最高权限角色，拥有系统的完全控制权。
+
+**权限范围**:
+- 拥有所有功能模块的完全访问权限
+- 拥有所有数据的查看、新增、修改、删除权限
+- 拥有系统配置和权限管理的完全控制权
+- 不受任何数据权限限制
+
+**义务与责任**:
+- 负责系统的整体规划与架构设计
+- 负责系统安全策略的制定与实施
+- 负责系统关键数据的备份与恢复
+- 负责系统重大变更的审批与执行
+- 负责系统故障的应急处理
+- 确保系统符合国家相关法律法规要求
+- 确保系统数据的安全性和完整性
+
+**使用限制**:
+- 不得滥用权限进行违规操作
+- 不得泄露系统敏感信息
+- 重大操作需有记录和审批流程
+
+### 二、管理员（Admin）
+
+**角色定义**: 系统管理角色，负责日常系统管理和业务管理。
+
+**权限范围**:
+- 拥有商户管理、任务管理、工单管理、督办推送等业务模块的完全访问权限
+- 拥有数据大屏和首页统计的查看权限
+- 拥有系统管理模块中除超级管理员专属功能外的管理权限
+- 拥有用户管理、角色管理、部门管理等基础管理权限
+- 拥有操作日志的查看权限
+
+**义务与责任**:
+- 负责商户信息的审核与维护
+- 负责检查任务的创建、分配与跟踪
+- 负责工单的督办与协调
+- 负责督办推送的执行与跟踪
+- 负责系统用户的日常管理
+- 负责系统权限的分配与管理
+- 负责系统数据的定期检查与清理
+- 负责系统操作的合规性监督
+- 及时响应和处理系统异常情况
+- 定期向超级管理员报告系统运行状况
+
+**使用限制**:
+- 不得越权访问超出职责范围的数据
+- 不得随意修改系统关键配置
+- 重要操作需有记录和审批
+
+### 三、普通用户（Public）
+
+**角色定义**: 系统基础用户角色，执行具体的业务操作。
+
+**权限范围**:
+- 拥有商户信息的查看权限（根据数据权限范围）
+- 拥有任务信息的查看权限（根据数据权限范围）
+- 拥有工单的查看、创建、修改权限（根据数据权限范围）
+- 拥有督办推送的查看权限（根据数据权限范围）
+- 拥有数据大屏和首页统计的查看权限（根据数据权限范围）
+- 拥有个人信息的修改权限
+
+**义务与责任**:
+- 负责商户信息的准确录入
+- 负责检查任务的执行与反馈
+- 负责工单的及时创建与更新
+- 负责问题整改的跟踪与反馈
+- 遵守系统使用规范
+- 保护账户安全，不得泄露账户信息
+- 及时报告发现的系统问题
+
+**使用限制**:
+- 仅能访问被授权的功能模块和数据范围
+- 不得进行越权操作
+- 不得恶意操作或破坏系统数据
+
+## 数据权限说明
+
+系统采用基于部门的数据权限控制机制：
+
+1. **全部数据权限**: 可访问所有部门的数据
+2. **本部门及以下数据权限**: 可访问本部门及下级部门的数据
+3. **仅本部门数据权限**: 仅可访问本部门的数据
+4. **仅本人数据权限**: 仅可访问本人创建的数据
+
+数据权限由角色管理员在角色管理中进行配置，用户的数据访问范围由其所属角色决定。
+
+## 系统安全要求
+
+1. **身份认证**: 所有用户必须通过用户名和密码进行身份认证
+2. **权限控制**: 系统采用基于角色的访问控制（RBAC）模型，确保用户只能访问被授权的功能
+3. **数据加密**: 敏感数据传输采用HTTPS加密
+4. **操作审计**: 系统记录所有关键操作日志，支持操作追溯
+5. **密码策略**: 用户密码需符合复杂度要求，定期更换
+6. **会话管理**: 系统支持会话超时自动退出，防止未授权访问
+
+## 系统部署要求
+
+### 环境要求
+
+- Python >= 3.9 (推荐 3.11+)
+- Node.js >= 16.0
+- MySQL >= 8.0 (推荐) 或 SQLite3 (开发环境)
+- Redis (可选，用于缓存和会话存储)
+
+### 部署步骤
+
+#### 后端部署
+
+1. 进入后端目录: `cd backend`
+2. 复制环境配置文件: 将 `./conf/env.example.py` 复制为 `./conf/env.py`
+3. 配置数据库信息: 在 `env.py` 中配置数据库连接信息
+   - MySQL数据库版本建议: 8.0
+   - MySQL数据库字符集: utf8mb4
+4. 安装Python依赖: `pip3 install -r requirements.txt`
+5. 执行数据库迁移:
+   ```bash
+   python3 manage.py makemigrations
+   python3 manage.py migrate
+   ```
+6. 初始化系统数据:
+   ```bash
+   python3 manage.py init
+   python3 manage.py init_area
+   ```
+7. 启动后端服务:
+   ```bash
+   python3 manage.py runserver 0.0.0.0:8000
+   ```
+   或使用 uvicorn:
+   ```bash
+   uvicorn application.asgi:application --port 8000 --host 0.0.0.0 --workers 8
+   ```
+
+#### 前端部署
+
+1. 进入前端目录: `cd web`
+2. 安装依赖: 
+   ```bash
+   npm install yarn
+   yarn install --registry=https://registry.npmmirror.com
+   ```
+3. 开发环境启动:
+   ```bash
+   yarn run dev
+   ```
+4. 生产环境构建:
+   ```bash
+   yarn run build
+   ```
+
+#### Docker部署
+
+使用docker-compose进行一键部署:
 
 ```bash
-# clone code
-git clone https://gitee.com/huge-dream/django-vue3-admin.git
-
-# enter code dir
-cd web
-
-# install dependence
-npm install yarn
-yarn install --registry=https://registry.npm.taobao.org
-
-# Start service
-yarn run dev
-# Visit http://localhost:8080 in your browser
-# Parameters such as boot port can be configured in the #.env.development file
-# Build the production environment
-# yarn run build
-```
-
-## backend💈
-
-~~~bash
-1. enter code dir cd backend
-2. copy ./conf/env.example.py to ./conf dir，rename as env.py
-3. in env.py configure database information
- mysql database recommended version: 8.0
- mysql database character set: utf8mb4
-4. install pip dependence
- pip3 install -r requirements.txt
-5. Execute the migration command:
- python3 manage.py makemigrations
- python3 manage.py migrate
-6. Initialization data
- python3 manage.py init
-7. Initialize provincial, municipal and county data:
- python3 manage.py init_area
-8. start backend
- python3 manage.py runserver 0.0.0.0:8000
-or uvicorn :
-  uvicorn application.asgi:application --port 8000 --host 0.0.0.0 --workers 8
-~~~
-
-### visit backend swagger
-
-* visit url：[http://localhost:8080](http://localhost:8080) (The default address is this one. If you want to change it, follow the configuration file)
-* account：`superadmin` password：`admin123456`
-
-### docker-compose
-
-~~~shell
+# 启动所有服务
 docker-compose up -d
-# Initialize backend data (first execution only)
+
+# 初始化后端数据（首次执行）
 docker exec -ti dvadmin3-django bash
-python manage.py makemigrations 
+python manage.py makemigrations
 python manage.py migrate
 python manage.py init_area
 python manage.py init
 exit
+```
 
-frontend url：http://127.0.0.1:8080
-backend url：http://127.0.0.1:8080/api
-# Change 127.0.0.1 to your own public ip address on the server
-account：`superadmin` password：`admin123456`
+访问地址:
+- 前端地址: http://127.0.0.1:8080
+- 后端API地址: http://127.0.0.1:8080/api
+- 默认账号: superadmin
+- 默认密码: admin123456
 
-# docker-compose stop
-docker-compose down
-#  docker-compose restart
-docker-compose restart
-#  docker-compose on start build
-docker-compose up -d --build
-~~~
+**注意**: 生产环境部署时，请务必修改默认密码，并配置HTTPS。
 
-## Demo screenshot✅
+## 系统维护
 
-![image-01](https://foruda.gitee.com/images/1701348994587355489/1bc749e7_5074988.png)
+1. **数据备份**: 定期备份数据库，建议每日备份
+2. **日志管理**: 定期清理和归档操作日志
+3. **性能监控**: 监控系统性能指标，及时处理异常
+4. **安全更新**: 及时更新系统依赖，修复安全漏洞
+5. **用户培训**: 定期组织用户培训，提高系统使用效率
 
-![image-02](https://foruda.gitee.com/images/1701349037811908960/80d361db_5074988.png)
+## 技术支持
 
-![image-03](https://foruda.gitee.com/images/1701349224478845203/954f0a7b_5074988.png)
+系统使用过程中如遇问题，请联系系统管理员或技术支持团队。
 
-![image-04](https://foruda.gitee.com/images/1701349248928658877/64926724_5074988.png)
+## 版本信息
 
-![image-05](https://foruda.gitee.com/images/1701349259068943299/1306ba40_5074988.png)
+当前版本: v1.0.0
 
-![image-06](https://foruda.gitee.com/images/1701349294894429495/e3b3a8cf_5074988.png)
+## 版权声明
 
-![image-07](https://foruda.gitee.com/images/1701350432536247561/3b26685e_5074988.png)
+本系统为政府内部使用系统，未经授权不得外传或用于商业用途。
 
-![image-08](https://foruda.gitee.com/images/1701350455264771992/b364c57f_5074988.png)
+---
 
-![image-09](https://foruda.gitee.com/images/1701350479266000753/e4e4f7c5_5074988.png)
-
-![image-10](https://foruda.gitee.com/images/1701350501421625746/f8dd215e_5074988.png)
-
-
+**重要提示**: 本系统涉及政府监管数据，所有用户必须严格遵守国家相关法律法规，确保数据安全和隐私保护。任何违规操作将承担相应法律责任。
