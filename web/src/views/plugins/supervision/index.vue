@@ -106,6 +106,21 @@
 				/>
 			</div>
 		</div>
+		
+		<!-- 工单详情抽屉 -->
+		<el-drawer
+			v-model="detailDrawerVisible"
+			title="工单详情"
+			direction="rtl"
+			size="80%"
+			:close-on-click-modal="false"
+			destroy-on-close
+		>
+			<workorder-detail
+				v-if="detailDrawerVisible && currentWorkorderId"
+				:workorder-id="currentWorkorderId"
+			/>
+		</el-drawer>
 	</div>
 </template>
 
@@ -114,9 +129,10 @@ import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Promotion } from '@element-plus/icons-vue';
 import * as api from './api';
-import { useRouter } from 'vue-router';
+import workorderDetail from '../workorder/detail.vue';
 
-const router = useRouter();
+const detailDrawerVisible = ref(false);
+const currentWorkorderId = ref<number | string | null>(null);
 
 // 筛选表单
 const filterForm = reactive({
@@ -229,8 +245,9 @@ const handleBatchPush = async () => {
 
 // 查看详情
 const handleViewDetail = (id: number) => {
-	// 跳转到工单详情页
-	router.push(`/workorder/detail/${id}`);
+	// 打开工单详情抽屉
+	currentWorkorderId.value = id;
+	detailDrawerVisible.value = true;
 };
 
 // 页面加载时获取数据

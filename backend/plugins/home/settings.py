@@ -21,3 +21,6 @@ settings.TENANT_SHARED_APPS += tenant_shared_apps
 # ********** 注册路由 **********
 settings.PLUGINS_URL_PATTERNS += plugins_url_patterns
 
+
+
+

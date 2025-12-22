@@ -4,8 +4,14 @@
 		<div class="detail-header">
 			<div class="header-title">
 				<span>工单详情: {{ workorderData.workorder_no }}</span>
-				<el-tag v-if="isOverdue" type="danger" size="large" style="margin-left: 12px;">
-					严重逾期
+				<el-tag v-if="overdueLevel.type === 'danger'" type="danger" size="large" style="margin-left: 12px;">
+					{{ overdueLevel.label }}
+				</el-tag>
+				<el-tag v-else-if="overdueLevel.type === 'warning'" type="warning" size="large" style="margin-left: 12px;">
+					{{ overdueLevel.label }}
+				</el-tag>
+				<el-tag v-else-if="overdueLevel.type === 'info'" type="info" size="large" style="margin-left: 12px;">
+					{{ overdueLevel.label }}
 				</el-tag>
 				<el-tag v-else-if="workorderData.status === 0" type="warning" size="large" style="margin-left: 12px;">
 					待整改
@@ -184,13 +190,34 @@ const workorderData = ref<any>({});
 const progressList = ref<any[]>([]);
 const reviewList = ref<any[]>([]);
 
-// 计算是否逾期
-const isOverdue = computed(() => {
-	if (!workorderData.value.deadline) return false;
+// 计算逾期天数
+const overdueDays = computed(() => {
+	if (!workorderData.value.deadline) return 0;
 	const deadline = new Date(workorderData.value.deadline);
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
-	return deadline < today && workorderData.value.status !== 1;
+	deadline.setHours(0, 0, 0, 0);
+	const diffTime = today.getTime() - deadline.getTime();
+	const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+	return Math.max(0, diffDays);
+});
+
+// 计算逾期级别（与督办中心保持一致）
+const overdueLevel = computed(() => {
+	const days = overdueDays.value;
+	// 如果工单已完成（待复查），不显示逾期标签
+	if (workorderData.value.status === 1) {
+		return { label: '', type: '' };
+	}
+	// 根据逾期天数判断级别（与督办中心逻辑一致）
+	if (days > 3) {
+		return { label: '严重逾期', type: 'danger' };
+	} else if (days > 1) {
+		return { label: '一般逾期', type: 'warning' };
+	} else if (days > 0) {
+		return { label: '轻微逾期', type: 'info' };
+	}
+	return { label: '', type: '' };
 });
 
 // 加载工单详情

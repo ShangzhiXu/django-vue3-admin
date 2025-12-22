@@ -105,6 +105,8 @@ const pageConfig = reactive({
 	limit: 10,
 	total: 0,
 });
+// 防止循环更新的标志
+const isUpdating = ref(false);
 
 /**
  * 判断行是否可选（用于单选模式限制只能选一个）
@@ -135,6 +137,11 @@ const handleSelect = (selection: any, row: any) => {
  * @param val:Array
  */
 const handleSelectionChange = (val: any) => {
+	// 如果正在更新中，跳过处理，避免循环
+	if (isUpdating.value) {
+		return;
+	}
+	
 	const { tableConfig } = props;
 	if (tableConfig.isMultiple) {
 		// 多选模式
@@ -144,7 +151,13 @@ const handleSelectionChange = (val: any) => {
 		data.value = val.map((item: any) => {
 			return item[tableConfig.label];
 		});
+		// 设置更新标志，防止触发 watch
+		isUpdating.value = true;
 		emit('update:modelValue', result);
+		// 延迟重置标志，确保 watch 不会触发
+		setTimeout(() => {
+			isUpdating.value = false;
+		}, 100);
 	} else {
 		// 单选模式：只取最后一个选择
 		if (val && val.length > 0) {
@@ -209,6 +222,11 @@ const getDict = async () => {
 
 // 获取节点值（用于回显已选择的值）
 const getNodeValues = async () => {
+	// 如果正在更新中，跳过处理，避免循环
+	if (isUpdating.value) {
+		return;
+	}
+	
 	if (!props.modelValue) {
 		return;
 	}
@@ -217,6 +235,9 @@ const getNodeValues = async () => {
 	if (ids.length === 0 || ids.every(id => id === null || id === undefined)) {
 		return;
 	}
+	
+	// 设置更新标志
+	isUpdating.value = true;
 	
 	try {
 		// 先通过 get_by_ids 接口获取已选择的数据
@@ -239,21 +260,25 @@ const getNodeValues = async () => {
 			// 等待表格数据加载完成后再选中
 			await getDict();
 			
-			// 选中对应的行
-			setTimeout(() => {
-				if (tableRef.value && tableData.value.length > 0) {
-					tableRef.value.clearSelection();
-					res.data.forEach((row: any) => {
-						// 在表格数据中查找对应的行
-						const tableRow = tableData.value.find((item: any) => item.id === row.id);
-						if (tableRow) {
-							tableRef.value!.toggleRowSelection(tableRow, true, false);
+					// 选中对应的行
+					setTimeout(() => {
+						if (tableRef.value && tableData.value.length > 0) {
+							tableRef.value.clearSelection();
+							res.data.forEach((row: any) => {
+								// 在表格数据中查找对应的行
+								const tableRow = tableData.value.find((item: any) => item.id === row.id);
+								if (tableRow) {
+									tableRef.value!.toggleRowSelection(tableRow, true, false);
+								}
+							});
 						}
-					});
+						// 重置更新标志
+						isUpdating.value = false;
+					}, 200);
+				} else {
+					isUpdating.value = false;
 				}
-			}, 200);
-		}
-	} catch (error) {
+			} catch (error) {
 		// 如果 get_by_ids 接口不存在，尝试从当前表格数据中查找
 		console.warn('获取节点值失败，尝试从当前数据中查找:', error);
 		// 等待表格数据加载
@@ -281,6 +306,8 @@ const getNodeValues = async () => {
 					}
 				});
 			}
+			// 重置更新标志
+			isUpdating.value = false;
 		}, 200);
 	}
 };
@@ -312,7 +339,17 @@ const handlePageChange = (page: any) => {
 // 监听 modelValue 变化，更新显示值
 watch(
 	() => props.modelValue,
-	(newVal) => {
+	(newVal, oldVal) => {
+		// 如果正在更新中，跳过处理，避免循环
+		if (isUpdating.value) {
+			return;
+		}
+		
+		// 如果值没有变化，也跳过
+		if (JSON.stringify(newVal) === JSON.stringify(oldVal)) {
+			return;
+		}
+		
 		if (newVal) {
 			// 如果已经有值，需要获取对应的显示文本
 			const ids = Array.isArray(newVal) ? newVal : [newVal];

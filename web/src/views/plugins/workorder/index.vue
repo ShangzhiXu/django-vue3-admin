@@ -7,6 +7,7 @@
 					<el-tab-pane label="待整改" name="pending"></el-tab-pane>
 					<el-tab-pane label="待复查" name="review"></el-tab-pane>
 					<el-tab-pane label="已逾期" name="overdue"></el-tab-pane>
+					<el-tab-pane label="已完成" name="completed"></el-tab-pane>
 				</el-tabs>
 			</template>
 			<template #actionbar-right>
@@ -27,7 +28,7 @@
 			title="工单详情"
 			direction="rtl"
 			size="80%"
-			:close-on-click-modal="false"
+			:close-on-click-modal="true"
 			destroy-on-close
 		>
 			<workorder-detail

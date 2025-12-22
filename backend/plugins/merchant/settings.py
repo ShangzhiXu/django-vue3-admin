@@ -20,3 +20,6 @@ settings.INSTALLED_APPS += [app for app in apps if app not in settings.INSTALLED
 settings.TENANT_SHARED_APPS += tenant_shared_apps
 # ********** 注册路由 **********
 settings.PLUGINS_URL_PATTERNS += plugins_url_patterns
+
+
+

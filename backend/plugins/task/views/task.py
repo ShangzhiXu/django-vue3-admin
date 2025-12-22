@@ -193,11 +193,55 @@ class TaskCreateSerializer(CustomModelSerializer):
         return attrs
     
     def create(self, validated_data):
-        """创建任务，处理多对多字段"""
+        """创建任务，处理多对多字段，并为每个覆盖商户创建工单"""
         merchants = validated_data.pop('merchants', [])
         task = super().create(validated_data)
         if merchants:
             task.merchants.set(merchants)
+            # 为每个覆盖商户创建工单
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            # 计算截止时间：默认为任务结束时间，如果没有则设置为创建时间后7天
+            if task.end_time:
+                deadline = task.end_time.date()
+            else:
+                deadline = (timezone.now() + timedelta(days=7)).date()
+            
+            # 生成工单号：WO + 年月日 + 3位序号
+            today = timezone.now().date()
+            date_str = today.strftime('%Y%m%d')
+            
+            # 查询当天最大的序号（只查询一次，避免重复）
+            max_order = WorkOrder.objects.filter(
+                workorder_no__startswith=f'WO{date_str}'
+            ).order_by('-workorder_no').first()
+            
+            if max_order:
+                # 提取序号并加1
+                sequence = int(max_order.workorder_no[-3:]) + 1
+            else:
+                sequence = 1
+            
+            # 为每个商户创建工单
+            for merchant in merchants:
+                # 生成工单号
+                workorder_no = f'WO{date_str}{sequence:03d}'
+                
+                # 创建工单
+                WorkOrder.objects.create(
+                    workorder_no=workorder_no,
+                    merchant=merchant,
+                    task=task,
+                    project_manager=task.manager,  # 从任务继承项目负责人
+                    hazard_level='medium',  # 默认隐患等级为中等
+                    deadline=deadline,
+                    status=0,  # 默认状态为待整改
+                    project=task.name,  # 使用任务名称作为项目名称
+                )
+                
+                # 序号递增，为下一个工单准备
+                sequence += 1
         return task
 
 

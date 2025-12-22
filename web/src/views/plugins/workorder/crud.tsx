@@ -15,6 +15,7 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 				pending: 0, // 待整改
 				review: 1, // 待复查
 				overdue: 3, // 已逾期
+				completed: 2, // 已完成
 			};
 			const statusValue = statusMap[currentTab];
 			// 只有当不是"全部"时才设置status筛选
@@ -67,7 +68,7 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 			},
 			rowHandle: {
 				fixed: 'right',
-				width: 280,
+				width: 350,
 				buttons: {
 					view: {
 						show: true,
@@ -111,6 +112,34 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 							} catch (error: any) {
 								if (error !== 'cancel') {
 									ElMessage.error(error?.message || '督办失败');
+								}
+							}
+						},
+					},
+					complete: {
+						text: '完成',
+						type: 'success',
+						show: (context: any) => {
+							// 已完成状态不显示完成按钮
+							return context.row.status !== 2;
+						},
+						click: async (context: any) => {
+							try {
+								await ElMessageBox.confirm(
+									`确定要完成工单 ${context.row.workorder_no} 吗？`,
+									'提示',
+									{
+										confirmButtonText: '确定',
+										cancelButtonText: '取消',
+										type: 'success',
+									}
+								);
+								await api.CompleteObj(context.row.id);
+								ElMessage.success('工单已完成');
+								crudExpose.doRefresh();
+							} catch (error: any) {
+								if (error !== 'cancel') {
+									ElMessage.error(error?.message || '完成操作失败');
 								}
 							}
 						},
@@ -488,6 +517,7 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						data: [
 							{ label: '待整改', value: 0 },
 							{ label: '待复查', value: 1 },
+							{ label: '已完成', value: 2 },
 							{ label: '已逾期', value: 3 },
 						],
 					}),
@@ -506,6 +536,7 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 							const statusMap: { [key: number]: string } = {
 								0: '待整改',
 								1: '待复查',
+								2: '已完成',
 								3: '已逾期',
 							};
 							return statusMap[context.value] || context.value || '-';
@@ -516,6 +547,7 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 								colors: {
 									0: 'warning',
 									1: 'primary',
+									2: 'success',
 									3: 'danger',
 								},
 							},

@@ -30,11 +30,12 @@ class HomeViewSet(ViewSet):
         total_merchants = Merchant.objects.count()
         
         # 2. 今日检查完成率
-        # 今日的工单数（待复查的工单视为已完成检查）
+        # 今日创建且状态为待复查或已完成的工单数
+        # 注意：completed_time 可能为 null，所以需要先过滤掉 null 值
         today_completed_workorders = WorkOrder.objects.filter(
-            create_datetime__date=today,
-            status=1  # 待复查
-        ).count()
+            Q(create_datetime__date=today, status__in=[1, 2]) |  # 今日创建且待复查/已完成
+            Q(completed_time__isnull=False, completed_time__date=today, status=2)  # 或今日完成的工单（不管什么时候创建）
+        ).distinct().count()
         total_today_workorders = WorkOrder.objects.filter(create_datetime__date=today).count()
         today_completion_rate = (today_completed_workorders / total_today_workorders * 100) if total_today_workorders > 0 else 0
         
@@ -93,9 +94,9 @@ class HomeViewSet(ViewSet):
         # 计算今日完成率环比（与昨天比较）
         yesterday = today - timedelta(days=1)
         yesterday_completed_workorders = WorkOrder.objects.filter(
-            create_datetime__date=yesterday,
-            status=1  # 待复查
-        ).count()
+            Q(create_datetime__date=yesterday, status__in=[1, 2]) |  # 昨日创建且待复查/已完成
+            Q(completed_time__isnull=False, completed_time__date=yesterday, status=2)  # 或昨日完成的工单（不管什么时候创建）
+        ).distinct().count()
         total_yesterday_workorders = WorkOrder.objects.filter(create_datetime__date=yesterday).count()
         yesterday_completion_rate = (yesterday_completed_workorders / total_yesterday_workorders * 100) if total_yesterday_workorders > 0 else 0
         completion_trend = today_completion_rate - yesterday_completion_rate
@@ -134,11 +135,12 @@ class HomeViewSet(ViewSet):
         # 计划检查：今日创建的任务数
         planned_checks = Task.objects.filter(start_time__date=today).count()
         
-        # 已完成：今日状态为待复查的工单数
+        # 已完成：今日创建且状态为待复查或已完成的工单，或今日完成的工单
+        # 注意：completed_time 可能为 null，所以需要先过滤掉 null 值
         completed_checks = WorkOrder.objects.filter(
-            create_datetime__date=today,
-            status=1  # 待复查
-        ).count()
+            Q(create_datetime__date=today, status__in=[1, 2]) |  # 今日创建且待复查/已完成
+            Q(completed_time__isnull=False, completed_time__date=today, status=2)  # 或今日完成的工单（不管什么时候创建）
+        ).distinct().count()
         
         # 发现隐患：今日创建的工单数（有隐患等级）
         found_hazards = WorkOrder.objects.filter(
@@ -193,7 +195,6 @@ class HomeViewSet(ViewSet):
         
         # 4. 人员绩效Top5（按负责的工单数量排序）
         from django.db.models import Count
-        from django.db.models import Q
         
         # 统计每个项目负责人负责的工单数量
         performance_data = WorkOrder.objects.filter(

@@ -76,6 +76,7 @@ class WorkOrder(CoreModel):
     STATUS_CHOICES = (
         (0, '待整改'),
         (1, '待复查'),
+        (2, '已完成'),
         (3, '已逾期'),
     )
     status = models.IntegerField(default=0, choices=STATUS_CHOICES, db_index=True, verbose_name='状态', help_text='工单状态')

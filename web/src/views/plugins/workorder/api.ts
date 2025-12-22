@@ -58,3 +58,10 @@ export function SuperviseObj(id: number) {
 	});
 }
 
+export function CompleteObj(id: number) {
+	return request({
+		url: apiPrefix + id + '/complete/',
+		method: 'post',
+	});
+}
+

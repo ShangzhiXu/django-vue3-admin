@@ -4,11 +4,15 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from rest_framework.renderers import JSONRenderer
 
 from dvadmin.utils.serializers import CustomModelSerializer
 from dvadmin.utils.viewset import CustomModelViewSet
 from dvadmin.utils.json_response import DetailResponse
 from plugins.workorder.models import WorkOrder
+from dvadmin.system.models import Users
 
 
 class WorkOrderSerializer(CustomModelSerializer):
@@ -64,8 +68,8 @@ class WorkOrderSerializer(CustomModelSerializer):
     def to_representation(self, instance):
         """序列化时自动判断是否逾期"""
         data = super().to_representation(instance)
-        # 如果状态不是已逾期，且截止时间已过，自动标记为已逾期
-        if instance.status != 3 and instance.deadline and instance.deadline < date.today():
+        # 如果状态不是已逾期和已完成，且截止时间已过，自动标记为已逾期
+        if instance.status not in [2, 3] and instance.deadline and instance.deadline < date.today():
             instance.status = 3
             instance.save(update_fields=['status'])
             data['status'] = 3
@@ -211,7 +215,7 @@ class WorkOrderViewSet(CustomModelViewSet):
         """自定义查询集，支持商户名称搜索和自动判断逾期"""
         queryset = super().get_queryset()
         
-        # 自动检查并更新逾期状态
+        # 自动检查并更新逾期状态（已完成状态不自动变更为逾期）
         today = date.today()
         queryset.filter(
             Q(status__in=[0, 1]) &  # 待整改或待复查
@@ -269,4 +273,102 @@ class WorkOrderViewSet(CustomModelViewSet):
         workorder.save(update_fields=['status', 'is_supervised'])
         
         return DetailResponse(msg=f"已对工单 {workorder.workorder_no} 执行督办")
+    
+    @action(methods=['post'], detail=True)
+    def complete(self, request, pk=None):
+        """
+        完成工单
+        """
+        workorder = self.get_object()
+        # 只有非已完成状态的工单才能完成
+        if workorder.status == 2:
+            return DetailResponse(msg="该工单已完成", code=400)
+        
+        from django.utils import timezone
+        workorder.status = 2  # 设置为已完成状态
+        workorder.completed_time = timezone.now()  # 记录完成时间
+        workorder.save(update_fields=['status', 'completed_time'])
+        
+        return DetailResponse(msg=f"工单 {workorder.workorder_no} 已完成")
+
+
+class MobileWorkOrderView(APIView):
+    """
+    根据手机号查询负责人工单信息的API
+    访问示例: /api/mobile/workorders?phone=13800138000
+    返回JSON格式: {"code": 2000, "data": {...}, "msg": "查询成功"}
+    """
+    permission_classes = [AllowAny]  # 允许匿名访问
+    renderer_classes = [JSONRenderer]  # 只返回JSON格式，不渲染HTML模板
+    
+    def get(self, request):
+        try:
+            phone = request.query_params.get('phone', None)
+            
+            if not phone:
+                return Response({
+                    "code": 400,
+                    "data": [],
+                    "msg": "请提供手机号参数"
+                }, status=400, content_type='application/json')
+            
+            # 直接用手机号作为负责人索引查询工单
+            # 包括：1. project_manager的手机号匹配的工单 2. project_manager为空但task的manager手机号匹配的工单
+            workorders = WorkOrder.objects.filter(
+                Q(project_manager__mobile=phone) |  # 直接设置的项目负责人手机号匹配
+                Q(project_manager__isnull=True, task__manager__mobile=phone)  # 从任务继承的负责人手机号匹配
+            ).select_related('merchant', 'task', 'project_manager', 'task__manager').order_by('-create_datetime')
+            
+            # 获取负责人信息（用于返回）
+            manager_name = None
+            manager_id = None
+            # 尝试从工单的project_manager获取，如果没有则从task的manager获取
+            first_workorder = workorders.first()
+            if first_workorder:
+                if first_workorder.project_manager and first_workorder.project_manager.mobile == phone:
+                    manager_name = first_workorder.project_manager.name
+                    manager_id = first_workorder.project_manager.id
+                elif first_workorder.task and first_workorder.task.manager and first_workorder.task.manager.mobile == phone:
+                    manager_name = first_workorder.task.manager.name
+                    manager_id = first_workorder.task.manager.id
+            
+            # 如果还是没有找到，尝试直接查询用户表
+            if not manager_name:
+                try:
+                    user = Users.objects.filter(mobile=phone).first()
+                    if user:
+                        manager_name = user.name
+                        manager_id = user.id
+                except Exception:
+                    pass
+            
+            # 如果没有找到任何工单和用户，返回404
+            if workorders.count() == 0 and not manager_name:
+                return Response({
+                    "code": 404,
+                    "data": [],
+                    "msg": f"未找到手机号为 {phone} 的负责人工单"
+                }, status=404, content_type='application/json')
+            
+            # 序列化工单数据
+            serializer = WorkOrderSerializer(workorders, many=True)
+            
+            return Response({
+                "code": 2000,
+                "data": {
+                    'phone': phone,
+                    'manager_name': manager_name,
+                    'manager_id': manager_id,
+                    'workorders': serializer.data,
+                    'total': workorders.count()
+                },
+                "msg": "查询成功"
+            }, content_type='application/json')
+        except Exception as e:
+            # 捕获所有异常，确保返回JSON格式
+            return Response({
+                "code": 500,
+                "data": [],
+                "msg": f"服务器错误: {str(e)}"
+            }, status=500, content_type='application/json')
 
