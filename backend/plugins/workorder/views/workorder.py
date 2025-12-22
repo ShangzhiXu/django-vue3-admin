@@ -162,6 +162,8 @@ class WorkOrderExportSerializer(CustomModelSerializer):
         fields = (
             "workorder_no",
             "merchant_name",
+            "check_category",
+            "check_item",
             "project",
             "hazard_level",
             "problem_description",
@@ -197,6 +199,8 @@ class WorkOrderViewSet(CustomModelViewSet):
     export_field_label = {
         "workorder_no": "工单号",
         "merchant_name": "商户名称",
+        "check_category": "检查类别",
+        "check_item": "检查问题",
         "project": "项目",
         "hazard_level": "隐患等级",
         "problem_description": "问题描述",

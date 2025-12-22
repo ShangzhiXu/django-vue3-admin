@@ -1,8 +1,8 @@
 import * as api from './api';
 import { UserPageQuery, AddReq, DelReq, EditReq, CreateCrudOptionsProps, CreateCrudOptionsRet, dict } from '@fast-crud/fast-crud';
-import { shallowRef, ref } from 'vue';
+import { shallowRef, ref, h } from 'vue';
 import tableSelector from '/@/components/tableSelector/index.vue';
-import { ElDialog, ElTable, ElTableColumn, ElPagination } from 'element-plus';
+import { ElDialog, ElTable, ElTableColumn, ElPagination, ElCheckboxGroup, ElCheckbox, ElDivider } from 'element-plus';
 
 export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOptionsProps): CreateCrudOptionsRet {
 	const pageRequest = async (query: UserPageQuery) => {
@@ -339,17 +339,167 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 				},
 				check_items: {
 					title: '检查项',
-					type: 'textarea',
+					type: 'text',
 					column: {
 						minWidth: 200,
 						showOverflowTooltip: true,
 					},
 					form: {
 						component: {
-							placeholder: '请输入检查项，多个用逗号分隔',
-							props: {
-								rows: 3,
+							// 自定义渲染：左侧类别，右侧具体检查项（分组多选）
+							render({ form }: any) {
+								// 统一的检查项配置
+								const categories = [
+									{
+										key: 'safety_manage',
+										label: '安全管理类',
+										items: ['安全生产制度', '应急预案', '应急演练', '培训记录', '责任卡张贴'],
+									},
+									{
+										key: 'gas',
+										label: '燃气类',
+										items: [
+											'燃气报警器、燃气自动切断装置',
+											'厨房是否多种燃料',
+											'是否使用调压阀',
+											'软管品质、长度、接头',
+											'管是否穿墙、门窗、棚顶、地面',
+											'是否使用三通',
+											'气罐是否倒置、加热',
+											'熄火保护装置',
+											'气罐距火源距离（大于0.5米）',
+											'同一空间气罐个数',
+											'是否有桌下罐',
+										],
+									},
+									{
+										key: 'fire',
+										label: '消防类',
+										items: [
+											'门窗防护网等',
+											'装潢是否易燃物',
+											'安全出口标识、应急灯',
+											'灭火器情况',
+											'空开情况',
+											'烟罩烟道情况、是否有清洗记录',
+											'电箱盖情况、电线是否需穿管',
+											'插座、电线是否烧焦',
+											'是否使用电热毯',
+											'疏散通道、楼梯上杂物',
+											'二楼情况（安全指示牌）',
+											'楼梯间情况（垃圾、隐藏气罐等）',
+										],
+									},
+									{
+										key: 'liquid_fuel',
+										label: '液体燃料类',
+										items: [
+											'灭火器在储油间门外或室外储罐周边3m范围内',
+											'液体燃料供货商是否与饭店签订供应合同',
+											'液体燃料使用安全操作规程，安全操作规程张贴于使用场所',
+											'燃料储存间和使用场所应具备良好的通风条件、不应设置员工宿舍',
+											'室内储罐、灶具周围1m处不应堆放可燃物',
+											'不应对盛装或盛装过可燃液体且未采取安全置换措施的储存容器进行电焊等明火作业',
+											'室外的金属储罐，应按规定做防雷接地',
+											'灶台应配置2块灭火毯设有明显、统一的标识',
+											'储罐和油泵出口设有紧急切断阀',
+											'储罐在室内一、二级耐火等级的单独房间内，门采用甲级防火门',
+										],
+									},
+								];
+
+								// 内部使用的选中值数组，来源于 check_items（逗号分隔）
+								if (!Array.isArray((form as any).check_items_list)) {
+									const raw = form.check_items || '';
+									(form as any).check_items_list = raw
+										.split(',')
+										.map((s: string) => s.trim())
+										.filter((s: string) => s);
+								}
+
+								const selected = (form as any).check_items_list as string[];
+
+								// 渲染左侧类别 + 右侧对应多选项
+								return h('div', { style: 'display: flex; gap: 16px;' }, [
+									// 左侧类别列表（仅展示，点击辅助定位）
+									h(
+										'div',
+										{
+											style:
+												'width: 160px; border-right: 1px solid #ebeef5; padding-right: 8px;',
+										},
+										categories.map((cat) =>
+											h(
+												'div',
+												{
+													style:
+														'padding: 6px 4px; cursor: pointer; font-weight: 500; color: #409EFF;',
+												},
+												cat.label
+											)
+										)
+									),
+									// 右侧各类别下的具体检查项多选
+									h(
+										'div',
+										{ style: 'flex: 1; padding-left: 8px; max-height: 320px; overflow: auto;' },
+										categories.map((cat, index) =>
+											h('div', { style: 'margin-bottom: 12px;' }, [
+												h(
+													'div',
+													{
+														style:
+															'margin-bottom: 4px; font-weight: 500; color: #303133;',
+													},
+													cat.label
+												),
+												h(
+													ElCheckboxGroup,
+													{
+														modelValue: selected,
+														'onUpdate:modelValue': (val: string[]) => {
+															(form as any).check_items_list = val;
+															form.check_items = val.join(',');
+														},
+													},
+													() =>
+														cat.items.map((item) =>
+															h(
+																ElCheckbox,
+																{
+																	label: item,
+																	style:
+																		'display: block; margin: 2px 0;',
+																},
+																() => item
+															)
+														)
+												),
+												index < categories.length - 1
+													? h(ElDivider, {
+															style: 'margin: 8px 0;',
+													  })
+													: null,
+											])
+										)
+									),
+								]);
 							},
+						},
+						valueBuilder(form: any) {
+							// 打开表单时，将后端的逗号分隔字符串转成数组
+							const raw = form.check_items || '';
+							form.check_items_list = raw
+								.split(',')
+								.map((s: string) => s.trim())
+								.filter((s: string) => s);
+						},
+						valueResolve(context: any) {
+							// 提交表单时，将数组再转回逗号分隔字符串
+							const list = context.form.check_items_list || [];
+							context.form.check_items = Array.isArray(list)
+								? list.join(',')
+								: context.form.check_items || '';
 						},
 					},
 				},

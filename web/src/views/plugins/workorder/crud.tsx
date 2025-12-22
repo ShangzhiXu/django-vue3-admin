@@ -1,9 +1,53 @@
 import * as api from './api';
 import { UserPageQuery, AddReq, DelReq, EditReq, CreateCrudOptionsProps, CreateCrudOptionsRet, dict } from '@fast-crud/fast-crud';
-import { shallowRef } from 'vue';
+import { shallowRef, h } from 'vue';
 import tableSelector from '/@/components/tableSelector/index.vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox, ElSelect, ElOption } from 'element-plus';
 import { request } from '/@/utils/service';
+
+// 检查类别对应的问题配置
+const CHECK_ITEMS_MAP: Record<string, string[]> = {
+	safety_manage: ['安全生产制度', '应急预案', '应急演练', '培训记录', '责任卡张贴'],
+	gas: [
+		'燃气报警器、燃气自动切断装置',
+		'厨房是否多种燃料',
+		'是否使用调压阀',
+		'软管品质、长度、接头',
+		'管是否穿墙、门窗、棚顶、地面',
+		'是否使用三通',
+		'气罐是否倒置、加热',
+		'熄火保护装置',
+		'气罐距火源距离（大于0.5米）',
+		'同一空间气罐个数',
+		'是否有桌下罐',
+	],
+	fire: [
+		'门窗防护网等',
+		'装潢是否易燃物',
+		'安全出口标识、应急灯',
+		'灭火器情况',
+		'空开情况',
+		'烟罩烟道情况、是否有清洗记录',
+		'电箱盖情况、电线是否需穿管',
+		'插座、电线是否烧焦',
+		'是否使用电热毯',
+		'疏散通道、楼梯上杂物',
+		'二楼情况（安全指示牌）',
+		'楼梯间情况（垃圾、隐藏气罐等）',
+	],
+	liquid_fuel: [
+		'灭火器在储油间门外或室外储罐周边3m范围内',
+		'液体燃料供货商是否与饭店签订供应合同',
+		'液体燃料使用安全操作规程，安全操作规程张贴于使用场所',
+		'燃料储存间和使用场所应具备良好的通风条件、不应设置员工宿舍',
+		'室内储罐、灶具周围1m处不应堆放可燃物',
+		'不应对盛装或盛装过可燃液体且未采取安全置换措施的储存容器进行电焊等明火作业',
+		'室外的金属储罐，应按规定做防雷接地',
+		'灶台应配置2块灭火毯设有明显、统一的标识',
+		'储罐和油泵出口设有紧急切断阀',
+		'储罐在室内一、二级耐火等级的单独房间内，门采用甲级防火门',
+	],
+};
 
 export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOptionsProps): CreateCrudOptionsRet {
 	const pageRequest = async (query: UserPageQuery) => {
@@ -279,6 +323,79 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						],
 						component: {
 							placeholder: '请选择隐患等级',
+						},
+					},
+				},
+				check_category: {
+					title: '检查类别',
+					type: 'dict-select',
+					dict: dict({
+						data: [
+							{ label: '安全管理类', value: 'safety_manage' },
+							{ label: '燃气类', value: 'gas' },
+							{ label: '消防类', value: 'fire' },
+							{ label: '液体燃料类', value: 'liquid_fuel' },
+						],
+					}),
+					search: {
+						show: true,
+					},
+					column: {
+						minWidth: 120,
+						align: 'center',
+					},
+					form: {
+						rules: [{ required: true, message: '请选择检查类别' }],
+						component: {
+							placeholder: '请选择检查类别',
+						},
+						valueChange(context: any) {
+							// 切换检查类别时，清空已选检查问题
+							if (context && context.form) {
+								context.form.check_item = undefined;
+							}
+						},
+					},
+				},
+				check_item: {
+					title: '检查问题',
+					type: 'text',
+					search: {
+						show: true,
+					},
+					column: {
+						minWidth: 260,
+						showOverflowTooltip: true,
+					},
+					form: {
+						rules: [{ required: true, message: '请选择检查问题' }],
+						component: {
+							render({ form }: any) {
+								const category = form.check_category as string | undefined;
+								const options = category ? CHECK_ITEMS_MAP[category] || [] : [];
+								const disabled = !category;
+								return h(
+									ElSelect,
+									{
+										modelValue: form.check_item || '',
+										'onUpdate:modelValue': (val: string) => {
+											form.check_item = val;
+										},
+										placeholder: category ? '请选择检查问题' : '请先选择检查类别',
+										filterable: true,
+										disabled,
+										style: 'width: 100%;',
+									},
+									() =>
+										options.map((item) =>
+											h(ElOption, {
+												label: item,
+												value: item,
+												key: item,
+											})
+										)
+								);
+							},
 						},
 					},
 				},

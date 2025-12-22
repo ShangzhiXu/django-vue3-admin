@@ -37,6 +37,31 @@ class WorkOrder(CoreModel):
     
     # 项目
     project = models.CharField(max_length=255, null=True, blank=True, verbose_name='项目', help_text='项目名称')
+
+    # 检查类别（例如：安全管理类、燃气类、消防类、液体燃料类）
+    CHECK_CATEGORY_CHOICES = (
+        ('safety_manage', '安全管理类'),
+        ('gas', '燃气类'),
+        ('fire', '消防类'),
+        ('liquid_fuel', '液体燃料类'),
+    )
+    check_category = models.CharField(
+        max_length=32,
+        choices=CHECK_CATEGORY_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name='检查类别',
+        help_text='安全管理类、燃气类、消防类、液体燃料类等'
+    )
+
+    # 具体检查问题（单选项，例如“安全生产制度”“燃气报警器、燃气自动切断装置”等）
+    check_item = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name='检查问题',
+        help_text='具体检查问题，来自预设问题列表'
+    )
     
     # 项目负责人（关联用户表）
     project_manager = models.ForeignKey(
