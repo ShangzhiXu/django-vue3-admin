@@ -82,6 +82,7 @@ const props = defineProps({
 			collapseTags: false,
 			treeProps: { children: 'children', hasChildren: 'hasChildren' },
 			columns: [], //每一项对应的列表项
+			extraParams: {}, //额外的动态参数
 		},
 	},
 	displayLabel: {},
@@ -201,6 +202,7 @@ const getDict = async () => {
 		page: pageConfig.page,
 		limit: pageConfig.limit,
 		search: search.value,
+		...(props.tableConfig.extraParams || {}), // 合并额外的动态参数
 	};
 	const { data, page, limit, total } = await request({
 		url: url,
@@ -364,6 +366,19 @@ watch(
 		}
 	},
 	{ immediate: true }
+);
+
+// 监听 extraParams 变化，重新加载数据
+watch(
+	() => props.tableConfig.extraParams,
+	(newParams, oldParams) => {
+		// 如果参数发生变化，重新加载数据
+		if (JSON.stringify(newParams) !== JSON.stringify(oldParams)) {
+			pageConfig.page = 1; // 重置到第一页
+			getDict();
+		}
+	},
+	{ deep: true }
 );
 
 onMounted(() => {

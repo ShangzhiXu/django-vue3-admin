@@ -1,5 +1,5 @@
 import * as api from './api';
-import { UserPageQuery, AddReq, DelReq, EditReq, CreateCrudOptionsProps, CreateCrudOptionsRet, dict } from '@fast-crud/fast-crud';
+import { UserPageQuery, AddReq, DelReq, EditReq, CreateCrudOptionsProps, CreateCrudOptionsRet, dict, compute } from '@fast-crud/fast-crud';
 import { shallowRef, ref, h } from 'vue';
 import tableSelector from '/@/components/tableSelector/index.vue';
 import { ElDialog, ElTable, ElTableColumn, ElPagination, ElCheckboxGroup, ElCheckbox, ElDivider } from 'element-plus';
@@ -18,6 +18,22 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 	const addRequest = async ({ form }: AddReq) => {
 		return await api.AddObj(form);
 	};
+	
+	// 负责人选择的 tableConfig，动态更新 extraParams
+	const managerTableConfig = ref({
+		url: '/api/system/user/',
+		label: 'name',
+		value: 'id',
+		columns: [
+			{ prop: 'name', label: '姓名', width: 120 },
+			{ prop: 'username', label: '账号', width: 120 },
+			{ prop: 'mobile', label: '电话', width: 150 },
+		],
+		isMultiple: false,
+		pagination: true,
+		extraParams: {} as any,
+	});
+	
 	return {
 		crudOptions: {
 			request: {
@@ -123,6 +139,62 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						},
 					},
 				},
+				manager_dept: {
+					title: '负责人部门',
+					type: 'table-selector',
+					search: {
+						show: false,
+					},
+					column: {
+						minWidth: 120,
+						formatter: (context: any) => {
+							// 如果后端返回了负责人部门名称
+							if (context.row.manager_dept_name) {
+								return context.row.manager_dept_name;
+							}
+							// 如果后端返回了负责人对象，通过负责人的部门获取
+							if (context.row.manager && typeof context.row.manager === 'object' && context.row.manager.dept) {
+								if (typeof context.row.manager.dept === 'object') {
+									return context.row.manager.dept.name || '-';
+								}
+							}
+							// 如果有部门ID，通过ID获取（这里可能需要异步获取，暂时显示ID）
+							return context.value ? `部门ID: ${context.value}` : '-';
+						},
+					},
+					form: {
+						component: {
+							name: shallowRef(tableSelector),
+							props: {
+								tableConfig: {
+									url: '/api/system/dept/',
+									label: 'name',
+									value: 'id',
+									columns: [
+										{ prop: 'name', label: '部门名称', width: 200 },
+									],
+									isMultiple: false,
+									pagination: true,
+								},
+							},
+							span: 12,
+							placeholder: '请先选择部门',
+						},
+					},
+					valueChange(context: any) {
+						// 当部门改变时，清空负责人选择并更新过滤参数
+						const { form } = context;
+						if (form.manager) {
+							form.manager = null;
+						}
+						// 更新负责人选择的过滤参数
+						if (form.manager_dept) {
+							managerTableConfig.value.extraParams = { dept: form.manager_dept, show_all: 1 };
+						} else {
+							managerTableConfig.value.extraParams = {};
+						}
+					},
+				},
 				manager: {
 					title: '负责人',
 					type: 'table-selector',
@@ -140,19 +212,10 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						component: {
 							name: shallowRef(tableSelector),
 							props: {
-								tableConfig: {
-									url: '/api/system/user/',
-									label: 'name',
-									value: 'id',
-									columns: [
-										{ prop: 'name', label: '姓名', width: 120 },
-										{ prop: 'username', label: '账号', width: 120 },
-										{ prop: 'mobile', label: '电话', width: 150 },
-									],
-									isMultiple: false,
-									pagination: true,
-								},
+								tableConfig: managerTableConfig,
 							},
+							span: 12,
+							placeholder: '请先选择部门，再选择负责人',
 						},
 					},
 				},

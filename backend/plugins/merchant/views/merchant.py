@@ -46,6 +46,34 @@ class MerchantSerializer(CustomModelSerializer):
         read_only_fields = ["id", "merchant_code"]  # merchant_code由系统自动生成，不允许手动修改
 
 
+class MerchantExportSerializer(CustomModelSerializer):
+    """
+    商户管理-导出序列化器
+    """
+    category_display = serializers.SerializerMethodField(read_only=True)
+    
+    def get_category_display(self, obj):
+        """返回类别的显示值"""
+        return obj.get_category_display() if obj.category else None
+    
+    class Meta:
+        model = Merchant
+        fields = [
+            "name",
+            "merchant_code",
+            "manager",
+            "phone",
+            "address",
+            "category",
+            "category_display",
+            "gps_status",
+            "description",
+            "create_datetime",
+            "update_datetime",
+        ]
+        read_only_fields = ["id"]
+
+
 class MerchantViewSet(CustomModelViewSet):
     """
     商户管理接口
@@ -60,6 +88,21 @@ class MerchantViewSet(CustomModelViewSet):
     filter_fields = ['name', 'manager', 'phone', 'gps_status', 'merchant_code', 'category']
     search_fields = ['name', 'manager', 'phone', 'address', 'merchant_code']
     extra_filter_class = []
+    
+    # 导出配置
+    export_field_label = {
+        "name": "商户名称",
+        "merchant_code": "商户编码",
+        "manager": "负责人",
+        "phone": "联系电话",
+        "address": "地址",
+        "category_display": "类别",
+        "gps_status": "GPS状态",
+        "description": "描述",
+        "create_datetime": "创建时间",
+        "update_datetime": "更新时间",
+    }
+    export_serializer_class = MerchantExportSerializer
     
     @action(methods=['post'], detail=True)
     def generate_qrcode(self, request, pk=None):

@@ -294,7 +294,7 @@ class ExportSerializerMixin:
     @action(methods=['get'],detail=False)
     def export_data(self, request: Request, *args, **kwargs):
         """
-        导出功能
+        导出功能 - 直接生成Excel文件并下载
         :param request:
         :param args:
         :param kwargs:
@@ -304,20 +304,14 @@ class ExportSerializerMixin:
         assert self.export_field_label, "'%s' 请配置对应的导出模板字段。" % self.__class__.__name__
         assert self.export_serializer_class, "'%s' 请配置对应的导出序列化器。" % self.__class__.__name__
         data = self.export_serializer_class(queryset, many=True, request=request).data
-        try:
-            async_export_data.delay(
-                data,
-                str(f"导出{get_verbose_name(queryset)}-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"),
-                DownloadCenter.objects.create(creator=request.user, task_name=f'{get_verbose_name(queryset)}数据导出任务', dept_belong_id=request.user.dept_id).pk,
-                self.export_field_label
-            )
-            return SuccessResponse(msg="导入任务已创建，请前往‘下载中心’等待下载")
-        except:
-            pass
-        # 导出excel 表
-        response = HttpResponse(content_type="application/msexcel")
-        response["Access-Control-Expose-Headers"] = f"Content-Disposition"
-        response["content-disposition"] = f'attachment;filename={quote(str(f"导出{get_verbose_name(queryset)}.xlsx"))}'
+        
+        # 直接导出excel文件，不通过异步任务
+        timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+        filename = f"导出{get_verbose_name(queryset)}-{timestamp}.xlsx"
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Access-Control-Expose-Headers"] = "Content-Disposition"
+        response["content-disposition"] = f'attachment;filename={quote(filename)}'
+        
         wb = Workbook()
         ws = wb.active
         header_data = ["序号", *self.export_field_label.values()]
@@ -326,25 +320,33 @@ class ExportSerializerMixin:
         row = get_column_letter(len(self.export_field_label) + 1)
         column = 1
         ws.append(header_data)
+        
         for index, results in enumerate(data):
             results_list = []
             for h_index, h_item in enumerate(hidden_header):
-                for key,val in results.items():
+                for key, val in results.items():
                     if key == h_item:
-                        if val is None or val=="":
+                        if val is None or val == "":
                             results_list.append("")
+                        elif isinstance(val, datetime.datetime):
+                            results_list.append(val.strftime("%Y-%m-%d %H:%M:%S"))
+                        elif isinstance(val, datetime.date):
+                            results_list.append(val.strftime("%Y-%m-%d"))
                         else:
-                            results_list.append(val)
+                            results_list.append(str(val))
                         # 计算最大列宽度
-                        result_column_width = self.get_string_len(val)
-                        if h_index !=0 and result_column_width > df_len_max[h_index]:
+                        result_column_width = self.get_string_len(str(val) if val else "")
+                        if h_index != 0 and result_column_width > df_len_max[h_index]:
                             df_len_max[h_index] = result_column_width
             ws.append([index + 1, *results_list])
             column += 1
-        # 　更新列宽
+        
+        # 更新列宽
         for index, width in enumerate(df_len_max):
             ws.column_dimensions[get_column_letter(index + 1)].width = width
-        tab = Table(displayName="Table", ref=f"A1:{row}{column}")  # 名称管理器
+        
+        # 添加表格样式
+        tab = Table(displayName="Table", ref=f"A1:{row}{column}")
         style = TableStyleInfo(
             name="TableStyleLight11",
             showFirstColumn=True,

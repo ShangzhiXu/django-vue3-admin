@@ -1,8 +1,234 @@
 [
   {
+    "name": "部门管理",
+    "icon": "ele-OfficeBuilding",
+    "sort": 0,
+    "is_link": false,
+    "is_catalog": false,
+    "web_path": "/dept",
+    "component": "system/dept/index",
+    "component_name": "dept",
+    "status": true,
+    "cache": false,
+    "visible": true,
+    "parent": null,
+    "children": [],
+    "menu_button": [
+      {
+        "name": "查询",
+        "value": "dept:Search",
+        "api": "/api/system/dept/",
+        "method": 0
+      },
+      {
+        "name": "详情",
+        "value": "dept:Retrieve",
+        "api": "/api/system/dept/{id}/",
+        "method": 0
+      },
+      {
+        "name": "获取所有部门",
+        "value": "dept:SearchAll",
+        "api": "/api/system/dept/all_dept/",
+        "method": 0
+      },
+      {
+        "name": "部门顶部信息",
+        "value": "dept:HeaderInfo",
+        "api": "/api/system/dept/dept_info/",
+        "method": 0
+      },
+      {
+        "name": "新增",
+        "value": "dept:Create",
+        "api": "/api/system/dept/",
+        "method": 1
+      },
+      {
+        "name": "上移",
+        "value": "dept:MoveUp",
+        "api": "/api/system/dept/mode_up/",
+        "method": 1
+      },
+      {
+        "name": "下移",
+        "value": "dept:MoveDown",
+        "api": "/api/system/dept/mode_down/",
+        "method": 1
+      },
+      {
+        "name": "编辑",
+        "value": "dept:Update",
+        "api": "/api/system/dept/{id}/",
+        "method": 2
+      },
+      {
+        "name": "删除",
+        "value": "dept:Delete",
+        "api": "/api/system/dept/{id}/",
+        "method": 3
+      }
+    ],
+    "menu_field": []
+  },
+  {
+    "name": "人员管理",
+    "icon": "iconfont icon-icon-",
+    "sort": 1,
+    "is_link": false,
+    "is_catalog": false,
+    "web_path": "/user",
+    "component": "system/user/index",
+    "component_name": "user",
+    "status": true,
+    "cache": false,
+    "visible": true,
+    "parent": null,
+    "children": [],
+    "menu_button": [
+      {
+        "name": "查询",
+        "value": "user:Search",
+        "api": "/api/system/user/",
+        "method": 0
+      },
+      {
+        "name": "新增",
+        "value": "user:Create",
+        "api": "/api/system/user/",
+        "method": 1
+      },
+      {
+        "name": "编辑",
+        "value": "user:Update",
+        "api": "/api/system/user/{id}/",
+        "method": 2
+      },
+      {
+        "name": "删除",
+        "value": "user:Delete",
+        "api": "/api/system/user/{id}/",
+        "method": 3
+      },
+      {
+        "name": "导出",
+        "value": "user:Export",
+        "api": "/api/system/user/export/",
+        "method": 1
+      },
+      {
+        "name": "导入",
+        "value": "user:Import",
+        "api": "/api/system/user/import/",
+        "method": 1
+      },
+      {
+        "name": "获取导入模板",
+        "value": "user:ImportTemplate",
+        "api": "/api/system/user/import/",
+        "method": 0
+      },
+      {
+        "name": "批量更新模板",
+        "value": "user:BatchUpdateTemplate",
+        "api": "/api/system/user/update_template/",
+        "method": 0
+      },
+      {
+        "name": "重设密码",
+        "value": "user:ResetPassword",
+        "api": "/api/system/user/{id}/reset_password/",
+        "method": 2
+      },
+      {
+        "name": "重置密码",
+        "value": "user:ResetDefaultPassword",
+        "api": "/api/system/user/{id}/reset_to_default_password/",
+        "method": 2
+      }
+    ],
+    "menu_field": [
+      {
+        "field_name": "avatar",
+        "title": "头像",
+        "model": "Users"
+      },
+      {
+        "field_name": "create_datetime",
+        "title": "创建时间",
+        "model": "Users"
+      },
+      {
+        "field_name": "creator",
+        "title": "创建人",
+        "model": "Users"
+      },
+      {
+        "field_name": "dept",
+        "title": "所属部门",
+        "model": "Users"
+      },
+      {
+        "field_name": "dept_belong_id",
+        "title": "数据归属部门",
+        "model": "Users"
+      },
+      {
+        "field_name": "description",
+        "title": "描述",
+        "model": "Users"
+      },
+      {
+        "field_name": "email",
+        "title": "邮箱",
+        "model": "Users"
+      },
+      {
+        "field_name": "gender",
+        "title": "性别",
+        "model": "Users"
+      },
+      {
+        "field_name": "id",
+        "title": "Id",
+        "model": "Users"
+      },
+      {
+        "field_name": "mobile",
+        "title": "电话",
+        "model": "Users"
+      },
+      {
+        "field_name": "modifier",
+        "title": "修改人",
+        "model": "Users"
+      },
+      {
+        "field_name": "name",
+        "title": "姓名",
+        "model": "Users"
+      },
+      {
+        "field_name": "update_datetime",
+        "title": "修改时间",
+        "model": "Users"
+      },
+      {
+        "field_name": "username",
+        "title": "用户账号",
+        "model": "Users"
+      },
+      {
+        "field_name": "user_type",
+        "title": "用户类型",
+        "model": "Users"
+      }
+    ]
+  },
+  {
     "name": "系统管理",
     "icon": "iconfont icon-xitongshezhi",
-    "sort": 1,
+    "sort": 2,
     "is_link": false,
     "is_catalog": true,
     "web_path": "/system",
@@ -12,159 +238,6 @@
     "cache": false,
     "visible": true,
     "children": [
-      {
-        "name": "用户管理",
-        "icon": "iconfont icon-icon-",
-        "sort": 1,
-        "is_link": false,
-        "is_catalog": false,
-        "web_path": "/user",
-        "component": "system/user/index",
-        "component_name": "user",
-        "status": true,
-        "cache": false,
-        "visible": true,
-        "children": [],
-        "menu_button": [
-          {
-            "name": "查询",
-            "value": "user:Search",
-            "api": "/api/system/user/",
-            "method": 0
-          },
-          {
-            "name": "新增",
-            "value": "user:Create",
-            "api": "/api/system/user/",
-            "method": 1
-          },
-          {
-            "name": "编辑",
-            "value": "user:Update",
-            "api": "/api/system/user/{id}/",
-            "method": 2
-          },
-          {
-            "name": "删除",
-            "value": "user:Delete",
-            "api": "/api/system/user/{id}/",
-            "method": 3
-          },
-          {
-            "name": "导出",
-            "value": "user:Export",
-            "api": "/api/system/user/export/",
-            "method": 1
-          },
-          {
-            "name": "导入",
-            "value": "user:Import",
-            "api": "/api/system/user/import/",
-            "method": 1
-          },
-          {
-            "name": "获取导入模板",
-            "value": "user:ImportTemplate",
-            "api": "/api/system/user/import/",
-            "method": 0
-          },
-          {
-            "name": "批量更新模板",
-            "value": "user:BatchUpdateTemplate",
-            "api": "/api/system/user/update_template/",
-            "method": 0
-          },
-          {
-            "name": "重设密码",
-            "value": "user:ResetPassword",
-            "api": "/api/system/user/{id}/reset_password/",
-            "method": 2
-          },
-          {
-            "name": "重置密码",
-            "value": "user:ResetDefaultPassword",
-            "api": "/api/system/user/{id}/reset_to_default_password/",
-            "method": 2
-          }
-        ],
-        "menu_field": [
-          {
-            "field_name": "avatar",
-            "title": "头像",
-            "model": "Users"
-          },
-          {
-            "field_name": "create_datetime",
-            "title": "创建时间",
-            "model": "Users"
-          },
-          {
-            "field_name": "creator",
-            "title": "创建人",
-            "model": "Users"
-          },
-          {
-            "field_name": "dept",
-            "title": "所属部门",
-            "model": "Users"
-          },
-          {
-            "field_name": "dept_belong_id",
-            "title": "数据归属部门",
-            "model": "Users"
-          },
-          {
-            "field_name": "description",
-            "title": "描述",
-            "model": "Users"
-          },
-          {
-            "field_name": "email",
-            "title": "邮箱",
-            "model": "Users"
-          },
-          {
-            "field_name": "gender",
-            "title": "性别",
-            "model": "Users"
-          },
-          {
-            "field_name": "id",
-            "title": "Id",
-            "model": "Users"
-          },
-          {
-            "field_name": "mobile",
-            "title": "电话",
-            "model": "Users"
-          },
-          {
-            "field_name": "modifier",
-            "title": "修改人",
-            "model": "Users"
-          },
-          {
-            "field_name": "name",
-            "title": "姓名",
-            "model": "Users"
-          },
-          {
-            "field_name": "update_datetime",
-            "title": "修改时间",
-            "model": "Users"
-          },
-          {
-            "field_name": "username",
-            "title": "用户账号",
-            "model": "Users"
-          },
-          {
-            "field_name": "user_type",
-            "title": "用户类型",
-            "model": "Users"
-          }
-        ]
-      },
       {
         "name": "菜单管理",
         "icon": "iconfont icon-caidan",
@@ -286,77 +359,6 @@
             "value": "column:Match",
             "api": "/api/system/column/auto_match_fields/",
             "method": 1
-          }
-        ],
-        "menu_field": []
-      },
-      {
-        "name": "部门管理",
-        "icon": "ele-OfficeBuilding",
-        "sort": 3,
-        "is_link": false,
-        "is_catalog": false,
-        "web_path": "/dept",
-        "component": "system/dept/index",
-        "component_name": "dept",
-        "status": true,
-        "cache": false,
-        "visible": true,
-        "children": [],
-        "menu_button": [
-          {
-            "name": "查询",
-            "value": "dept:Search",
-            "api": "/api/system/dept/",
-            "method": 0
-          },
-          {
-            "name": "详情",
-            "value": "dept:Retrieve",
-            "api": "/api/system/dept/{id}/",
-            "method": 0
-          },
-          {
-            "name": "获取所有部门",
-            "value": "dept:SearchAll",
-            "api": "/api/system/dept/all_dept/",
-            "method": 0
-          },
-          {
-            "name": "部门顶部信息",
-            "value": "dept:HeaderInfo",
-            "api": "/api/system/dept/dept_info/",
-            "method": 0
-          },
-          {
-            "name": "新增",
-            "value": "dept:Create",
-            "api": "/api/system/dept/",
-            "method": 1
-          },
-          {
-            "name": "上移",
-            "value": "dept:MoveUp",
-            "api": "/api/system/dept/mode_up/",
-            "method": 1
-          },
-          {
-            "name": "下移",
-            "value": "dept:MoveDown",
-            "api": "/api/system/dept/mode_down/",
-            "method": 1
-          },
-          {
-            "name": "编辑",
-            "value": "dept:Update",
-            "api": "/api/system/dept/{id}/",
-            "method": 2
-          },
-          {
-            "name": "删除",
-            "value": "dept:Delete",
-            "api": "/api/system/dept/{id}/",
-            "method": 3
           }
         ],
         "menu_field": []
@@ -742,7 +744,7 @@
       {
         "name": "常规配置",
         "icon": "iconfont icon-configure",
-        "sort": 2,
+        "sort": 3,
         "is_link": false,
         "is_catalog": true,
         "web_path": "/generalConfig",
@@ -1169,7 +1171,7 @@
       {
         "name": "日志管理",
         "icon": "iconfont icon-rizhi",
-        "sort": 3,
+        "sort": 4,
         "is_link": false,
         "is_catalog": true,
         "web_path": "/log",

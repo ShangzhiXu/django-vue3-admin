@@ -124,6 +124,15 @@
 							<span class="info-value">{{ workorderData.problem_description || '-' }}</span>
 						</div>
 						<div class="info-item">
+							<span class="info-label">整改类别：</span>
+							<span class="info-value">
+								{{ workorderData.rectification_category_display || 
+								   (workorderData.rectification_category === 'immediate' ? '当场整改' : 
+								    workorderData.rectification_category === 'deadline' ? '限期整改' : 
+								    workorderData.rectification_category === 'transfer' ? '移交整改' : '-') }}
+							</span>
+						</div>
+						<div class="info-item">
 							<span class="info-label">上报时间：</span>
 							<span class="info-value">{{ formatDateTime(workorderData.report_time) }}</span>
 						</div>

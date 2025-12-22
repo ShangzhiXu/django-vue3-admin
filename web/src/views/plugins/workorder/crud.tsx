@@ -1,6 +1,6 @@
 import * as api from './api';
 import { UserPageQuery, AddReq, DelReq, EditReq, CreateCrudOptionsProps, CreateCrudOptionsRet, dict } from '@fast-crud/fast-crud';
-import { shallowRef, h } from 'vue';
+import { shallowRef, h, ref } from 'vue';
 import tableSelector from '/@/components/tableSelector/index.vue';
 import { ElMessage, ElMessageBox, ElSelect, ElOption } from 'element-plus';
 import { request } from '/@/utils/service';
@@ -50,6 +50,21 @@ const CHECK_ITEMS_MAP: Record<string, string[]> = {
 };
 
 export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOptionsProps): CreateCrudOptionsRet {
+	// 项目负责人选择的 tableConfig，动态更新 extraParams
+	const projectManagerTableConfig = ref({
+		url: '/api/system/user/',
+		label: 'name',
+		value: 'id',
+		columns: [
+			{ prop: 'name', label: '姓名', width: 120 },
+			{ prop: 'username', label: '账号', width: 120 },
+			{ prop: 'mobile', label: '电话', width: 150 },
+		],
+		isMultiple: false,
+		pagination: true,
+		extraParams: {} as any,
+	});
+	
 	const pageRequest = async (query: UserPageQuery) => {
 		// 根据状态标签筛选
 		const currentTab = context?.statusTab?.value || context?.statusTab;
@@ -437,6 +452,42 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						},
 					},
 				},
+				rectification_category: {
+					title: '整改类别',
+					type: 'dict-select',
+					dict: dict({
+						data: [
+							{ label: '当场整改', value: 'immediate' },
+							{ label: '限期整改', value: 'deadline' },
+							{ label: '移交整改', value: 'transfer' },
+						],
+					}),
+					search: {
+						show: true,
+					},
+					column: {
+						minWidth: 120,
+						align: 'center',
+						formatter: (context: any) => {
+							// 优先使用后端返回的中文显示值
+							if (context.row.rectification_category_display) {
+								return context.row.rectification_category_display;
+							}
+							// 如果没有，则根据值映射
+							const categoryMap: { [key: string]: string } = {
+								'immediate': '当场整改',
+								'deadline': '限期整改',
+								'transfer': '移交整改',
+							};
+							return categoryMap[context.value] || context.value || '-';
+						},
+					},
+					form: {
+						component: {
+							placeholder: '请选择整改类别',
+						},
+					},
+				},
 				task: {
 					title: '关联任务',
 					type: 'table-selector',
@@ -498,6 +549,62 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						},
 					},
 				},
+				project_manager_dept: {
+					title: '项目负责人部门',
+					type: 'table-selector',
+					search: {
+						show: false,
+					},
+					column: {
+						minWidth: 120,
+						formatter: (context: any) => {
+							// 如果后端返回了项目负责人部门名称
+							if (context.row.project_manager_dept_name) {
+								return context.row.project_manager_dept_name;
+							}
+							// 如果后端返回了项目负责人对象，通过项目负责人的部门获取
+							if (context.row.project_manager && typeof context.row.project_manager === 'object' && context.row.project_manager.dept) {
+								if (typeof context.row.project_manager.dept === 'object') {
+									return context.row.project_manager.dept.name || '-';
+								}
+							}
+							// 如果有部门ID，通过ID获取（这里可能需要异步获取，暂时显示ID）
+							return context.value ? `部门ID: ${context.value}` : '-';
+						},
+					},
+					form: {
+						component: {
+							name: shallowRef(tableSelector),
+							props: {
+								tableConfig: {
+									url: '/api/system/dept/',
+									label: 'name',
+									value: 'id',
+									columns: [
+										{ prop: 'name', label: '部门名称', width: 200 },
+									],
+									isMultiple: false,
+									pagination: true,
+								},
+							},
+							span: 12,
+							placeholder: '请先选择部门',
+						},
+					},
+					valueChange(context: any) {
+						// 当部门改变时，清空项目负责人选择并更新过滤参数
+						const { form } = context;
+						if (form.project_manager) {
+							form.project_manager = null;
+						}
+						// 更新项目负责人选择的过滤参数
+						if (form.project_manager_dept) {
+							projectManagerTableConfig.value.extraParams = { dept: form.project_manager_dept, show_all: 1 };
+						} else {
+							projectManagerTableConfig.value.extraParams = {};
+						}
+					},
+				},
 				project_manager: {
 					title: '项目负责人',
 					type: 'table-selector',
@@ -523,20 +630,10 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						component: {
 							name: shallowRef(tableSelector),
 							props: {
-								tableConfig: {
-									url: '/api/system/user/',
-									label: 'name',
-									value: 'id',
-									columns: [
-										{ prop: 'name', label: '姓名', width: 120 },
-										{ prop: 'username', label: '账号', width: 120 },
-										{ prop: 'mobile', label: '电话', width: 150 },
-									],
-									isMultiple: false,
-									pagination: true,
-								},
+								tableConfig: projectManagerTableConfig,
 							},
-							placeholder: '请选择项目负责人（默认从任务继承）',
+							span: 12,
+							placeholder: '请先选择部门，再选择项目负责人（默认从任务继承）',
 						},
 					},
 				},

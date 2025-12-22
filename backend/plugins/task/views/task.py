@@ -26,6 +26,7 @@ class TaskSerializer(CustomModelSerializer):
     # 保留原始值用于编辑
     cycle_value = serializers.CharField(source='cycle', read_only=True)
     manager_name = serializers.SerializerMethodField(read_only=True)
+    manager_dept_name = serializers.SerializerMethodField(read_only=True)
     
     def get_merchant_count(self, obj):
         """获取商户数量"""
@@ -44,6 +45,12 @@ class TaskSerializer(CustomModelSerializer):
     def get_manager_name(self, obj):
         """返回负责人名称"""
         return obj.manager.name if obj.manager else None
+    
+    def get_manager_dept_name(self, obj):
+        """返回负责人部门名称"""
+        if obj.manager and obj.manager.dept:
+            return obj.manager.dept.name
+        return None
     
     def get_time_range(self, obj):
         """返回时间范围数组（前端格式）"""
@@ -382,9 +389,11 @@ class TaskExportSerializer(CustomModelSerializer):
     cycle = serializers.SerializerMethodField(read_only=True)
     status = serializers.SerializerMethodField(read_only=True)
     manager_name = serializers.SerializerMethodField(read_only=True)
+    manager_dept_name = serializers.SerializerMethodField(read_only=True)
+    merchant_count = serializers.SerializerMethodField(read_only=True)
+    merchants = serializers.SerializerMethodField(read_only=True)
     start_time = serializers.DateTimeField(format="%Y-%m-%d", required=False, read_only=True)
     end_time = serializers.DateTimeField(format="%Y-%m-%d", required=False, read_only=True)
-    merchants = serializers.SerializerMethodField(read_only=True)
     create_datetime = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", required=False, read_only=True)
     update_datetime = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", required=False, read_only=True)
     
@@ -400,6 +409,14 @@ class TaskExportSerializer(CustomModelSerializer):
         """返回负责人名称"""
         return obj.manager.name if obj.manager else ""
     
+    def get_manager_dept_name(self, obj):
+        """返回负责人部门名称"""
+        return obj.manager.dept.name if obj.manager and obj.manager.dept else ""
+    
+    def get_merchant_count(self, obj):
+        """返回覆盖商户数"""
+        return obj.merchant_count if hasattr(obj, 'merchant_count') else obj.merchants.count()
+    
     def get_merchants(self, obj):
         """返回商户名称列表（用逗号分隔）"""
         merchant_names = obj.merchants.values_list('name', flat=True)
@@ -409,10 +426,12 @@ class TaskExportSerializer(CustomModelSerializer):
         model = Task
         fields = (
             "name",
+            "manager_dept_name",
             "manager_name",
             "cycle",
             "start_time",
             "end_time",
+            "merchant_count",
             "merchants",
             "check_items",
             "status",
@@ -431,7 +450,7 @@ class TaskViewSet(CustomModelViewSet):
     retrieve:单例
     destroy:删除
     """
-    queryset = Task.objects.select_related('manager').prefetch_related('merchants', 'workorders').all()
+    queryset = Task.objects.select_related('manager', 'manager__dept').prefetch_related('merchants', 'workorders').all()
     serializer_class = TaskSerializer
     create_serializer_class = TaskCreateSerializer
     update_serializer_class = TaskUpdateSerializer
@@ -442,10 +461,12 @@ class TaskViewSet(CustomModelViewSet):
     # 导出配置
     export_field_label = {
         "name": "任务名称",
+        "manager_dept_name": "负责人部门",
         "manager_name": "负责人",
         "cycle": "周期",
         "start_time": "开始时间",
         "end_time": "结束时间",
+        "merchant_count": "覆盖商户数",
         "merchants": "覆盖商户",
         "check_items": "检查项",
         "status": "状态",

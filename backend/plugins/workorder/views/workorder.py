@@ -26,6 +26,8 @@ class WorkOrderSerializer(CustomModelSerializer):
     status_display = serializers.SerializerMethodField(read_only=True)
     task_name = serializers.SerializerMethodField(read_only=True)
     project_manager_name = serializers.SerializerMethodField(read_only=True)
+    project_manager_dept_name = serializers.SerializerMethodField(read_only=True)
+    rectification_category_display = serializers.SerializerMethodField(read_only=True)
     
     def get_merchant_name(self, obj):
         """获取商户名称"""
@@ -59,6 +61,19 @@ class WorkOrderSerializer(CustomModelSerializer):
         if obj.task and obj.task.manager:
             return obj.task.manager.name
         return None
+    
+    def get_project_manager_dept_name(self, obj):
+        """获取项目负责人部门名称"""
+        if obj.project_manager and obj.project_manager.dept:
+            return obj.project_manager.dept.name
+        # 如果没有设置项目负责人，尝试从任务继承
+        if obj.task and obj.task.manager and obj.task.manager.dept:
+            return obj.task.manager.dept.name
+        return None
+    
+    def get_rectification_category_display(self, obj):
+        """获取整改类别的中文显示值"""
+        return obj.get_rectification_category_display() if obj.rectification_category else None
     
     class Meta:
         model = WorkOrder
@@ -132,9 +147,13 @@ class WorkOrderExportSerializer(CustomModelSerializer):
     工单导出序列化器
     """
     merchant_name = serializers.SerializerMethodField(read_only=True)
+    check_category_display = serializers.SerializerMethodField(read_only=True)
+    project_manager_dept_name = serializers.SerializerMethodField(read_only=True)
+    project_manager_name = serializers.SerializerMethodField(read_only=True)
     hazard_level = serializers.SerializerMethodField(read_only=True)
     status = serializers.SerializerMethodField(read_only=True)
     task_name = serializers.SerializerMethodField(read_only=True)
+    rectification_category = serializers.SerializerMethodField(read_only=True)
     report_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", required=False, read_only=True)
     deadline = serializers.DateField(format="%Y-%m-%d", required=False, read_only=True)
     completed_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", required=False, read_only=True)
@@ -144,6 +163,28 @@ class WorkOrderExportSerializer(CustomModelSerializer):
     def get_merchant_name(self, obj):
         """返回商户名称"""
         return obj.merchant.name if obj.merchant else ""
+    
+    def get_check_category_display(self, obj):
+        """返回检查类别的中文显示值"""
+        return obj.get_check_category_display() if obj.check_category else ""
+    
+    def get_project_manager_dept_name(self, obj):
+        """返回项目负责人部门名称"""
+        if obj.project_manager and obj.project_manager.dept:
+            return obj.project_manager.dept.name
+        # 如果项目负责人没有部门，尝试从关联任务的负责人部门获取
+        if obj.task and obj.task.manager and obj.task.manager.dept:
+            return obj.task.manager.dept.name
+        return ""
+    
+    def get_project_manager_name(self, obj):
+        """返回项目负责人名称"""
+        if obj.project_manager:
+            return obj.project_manager.name
+        # 如果没有设置项目负责人，尝试从任务继承
+        if obj.task and obj.task.manager:
+            return obj.task.manager.name
+        return ""
     
     def get_hazard_level(self, obj):
         """返回隐患等级的中文显示值"""
@@ -157,16 +198,23 @@ class WorkOrderExportSerializer(CustomModelSerializer):
         """返回任务名称"""
         return obj.task.name if obj.task else ""
     
+    def get_rectification_category(self, obj):
+        """返回整改类别的中文显示值"""
+        return obj.get_rectification_category_display() if obj.rectification_category else ""
+    
     class Meta:
         model = WorkOrder
         fields = (
             "workorder_no",
             "merchant_name",
-            "check_category",
+            "check_category_display",
             "check_item",
             "project",
+            "project_manager_dept_name",
+            "project_manager_name",
             "hazard_level",
             "problem_description",
+            "rectification_category",
             "report_time",
             "deadline",
             "status",
@@ -187,7 +235,7 @@ class WorkOrderViewSet(CustomModelViewSet):
     retrieve:单例
     destroy:删除
     """
-    queryset = WorkOrder.objects.select_related('merchant', 'task').all()
+    queryset = WorkOrder.objects.select_related('merchant', 'task', 'project_manager', 'project_manager__dept', 'task__manager', 'task__manager__dept').all()
     serializer_class = WorkOrderSerializer
     create_serializer_class = WorkOrderCreateSerializer
     update_serializer_class = WorkOrderUpdateSerializer
@@ -199,11 +247,14 @@ class WorkOrderViewSet(CustomModelViewSet):
     export_field_label = {
         "workorder_no": "工单号",
         "merchant_name": "商户名称",
-        "check_category": "检查类别",
+        "check_category_display": "检查类别",
         "check_item": "检查问题",
         "project": "项目",
+        "project_manager_dept_name": "项目负责人部门",
+        "project_manager_name": "项目负责人",
         "hazard_level": "隐患等级",
         "problem_description": "问题描述",
+        "rectification_category": "整改类别",
         "report_time": "上报时间",
         "deadline": "截止时间",
         "status": "状态",

@@ -91,6 +91,21 @@ class WorkOrder(CoreModel):
     # 问题描述
     problem_description = models.TextField(null=True, blank=True, verbose_name='问题描述', help_text='问题描述')
     
+    # 整改类别
+    RECTIFICATION_CATEGORY_CHOICES = (
+        ('immediate', '当场整改'),
+        ('deadline', '限期整改'),
+        ('transfer', '移交整改'),
+    )
+    rectification_category = models.CharField(
+        max_length=32,
+        choices=RECTIFICATION_CATEGORY_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name='整改类别',
+        help_text='当场整改、限期整改、移交整改'
+    )
+    
     # 上报时间（自动记录创建时间）
     report_time = models.DateTimeField(auto_now_add=True, verbose_name='上报时间', help_text='上报时间')
     
