@@ -14,11 +14,35 @@ class Merchant(CoreModel):
     phone = models.CharField(max_length=20, null=True, blank=True, verbose_name='联系电话', help_text='联系电话')
     address = models.TextField(null=True, blank=True, verbose_name='地址', help_text='地址')
     
-    GPS_STATUS_CHOICES = (
-        (0, '已关闭'),
-        (1, '已开启'),
+    # GPS 状态改为可存任意字符串，例如经纬度 "-37,145"
+    gps_status = models.CharField(max_length=64, null=True, blank=True, verbose_name='GPS', help_text='GPS 信息，如经纬度字符串')
+
+    # 场所类别
+    CATEGORY_CHOICES = (
+        (1, '大型商超'),
+        (2, '商业综合体'),
+        (3, '大型餐饮饭店'),
+        (4, '大型宾馆'),
+        (5, '大型洗浴'),
+        (6, '成品油市场'),
+        (7, '再生资源回收利用'),
+        (8, '新车，二手车销售'),
+        (9, '洗车服务（不包括“汽车修理与维护”）'),
+        (10, '托管班、“小饭桌”、自习室等校外托管服务场所（不包含课余辅导、教育培训）'),
+        (11, '九小场所（小超市、小饭馆、小旅店、小美容洗浴）'),
+        (12, '拍卖'),
+        (13, '旧货流通'),
+        (14, '报废机动车回收'),
+        (15, '摄影服务（婚纱摄影）'),
+        (16, '家用电器修理'),
+        (17, '其他'),
     )
-    gps_status = models.IntegerField(default=0, choices=GPS_STATUS_CHOICES, verbose_name='GPS状态', help_text='GPS状态')
+    category = models.IntegerField(
+        default=17, 
+        choices=CATEGORY_CHOICES, 
+        verbose_name='场所类别', 
+        help_text='场所类别'
+    )
     
     # 商户唯一标识码（根据商户信息自动生成）
     merchant_code = models.CharField(

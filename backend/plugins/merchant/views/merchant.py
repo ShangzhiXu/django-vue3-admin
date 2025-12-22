@@ -57,7 +57,7 @@ class MerchantViewSet(CustomModelViewSet):
     """
     queryset = Merchant.objects.all()
     serializer_class = MerchantSerializer
-    filter_fields = ['name', 'manager', 'phone', 'gps_status', 'merchant_code']
+    filter_fields = ['name', 'manager', 'phone', 'gps_status', 'merchant_code', 'category']
     search_fields = ['name', 'manager', 'phone', 'address', 'merchant_code']
     extra_filter_class = []
     

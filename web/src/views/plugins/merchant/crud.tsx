@@ -207,6 +207,67 @@ export const createCrudOptions = function ({ crudExpose }: CreateCrudOptionsProp
 						},
 					},
 				},
+				category: {
+					title: '场所类别',
+					type: 'dict-select',
+					dict: dict({
+						data: [
+							{ label: '大型商超', value: 1 },
+							{ label: '商业综合体', value: 2 },
+							{ label: '大型餐饮饭店', value: 3 },
+							{ label: '大型宾馆', value: 4 },
+							{ label: '大型洗浴', value: 5 },
+							{ label: '成品油市场', value: 6 },
+							{ label: '再生资源回收利用', value: 7 },
+							{ label: '新车，二手车销售', value: 8 },
+							{ label: '洗车服务（不包括“汽车修理与维护”）', value: 9 },
+							{ label: '托管班、“小饭桌”、自习室等校外托管服务场所（不包含课余辅导、教育培训）', value: 10 },
+							{ label: '九小场所（小超市、小饭馆、小旅店、小美容洗浴）', value: 11 },
+							{ label: '拍卖', value: 12 },
+							{ label: '旧货流通', value: 13 },
+							{ label: '报废机动车回收', value: 14 },
+							{ label: '摄影服务（婚纱摄影）', value: 15 },
+							{ label: '家用电器修理', value: 16 },
+							{ label: '其他', value: 17 },
+						],
+					}),
+					search: {
+						show: true,
+					},
+					column: {
+						minWidth: 160,
+						align: 'center',
+						formatter: ({ row }: any) => {
+							const map: Record<string | number, string> = {
+								1: '大型商超',
+								2: '商业综合体',
+								3: '大型餐饮饭店',
+								4: '大型宾馆',
+								5: '大型洗浴',
+								6: '成品油市场',
+								7: '再生资源回收利用',
+								8: '新车，二手车销售',
+								9: '洗车服务（不包括“汽车修理与维护”）',
+								10: '托管班、“小饭桌”、自习室等校外托管服务场所（不包含课余辅导、教育培训）',
+								11: '九小场所（小超市、小饭馆、小旅店、小美容洗浴）',
+								12: '拍卖',
+								13: '旧货流通',
+								14: '报废机动车回收',
+								15: '摄影服务（婚纱摄影）',
+								16: '家用电器修理',
+								17: '其他',
+							};
+							const val = (row as any)?.category;
+							return map[val] || val || '-';
+						},
+					},
+					form: {
+						component: {
+							placeholder: '请选择场所类别',
+						},
+						value: 17,
+					},
+				},
 				address: {
 					title: '地址',
 					type: 'textarea',
@@ -233,28 +294,24 @@ export const createCrudOptions = function ({ crudExpose }: CreateCrudOptionsProp
 					},
 				},
 				gps_status: {
-					title: 'GPS状态',
-					type: 'dict-select',
-					dict: dict({
-						data: [
-							{ label: '已开启', value: 1 },
-							{ label: '已关闭', value: 0 },
-						],
-					}),
+					title: 'GPS',
+					type: 'input',
 					search: {
 						show: true,
-					},
-					column: {
-						minWidth: 100,
-						align: 'center',
 						component: {
-							name: 'fs-dict-tag',
+							props: {
+								clearable: true,
+							},
+							placeholder: '请输入GPS（经度，纬度）',
 						},
 					},
+					column: {
+						minWidth: 180,
+						align: 'center',
+					},
 					form: {
-						value: 0,
 						component: {
-							placeholder: '请选择GPS状态',
+							placeholder: '请输入GPS经纬度，逗号分隔（如 -145.255,37.100）',
 						},
 					},
 				},

@@ -14,6 +14,13 @@ __pycache__/
 venv/
 .env.*
 
+# Project local config (do not commit)
+backend/conf/env.py
+web/.env.local
+web/.env.development.local
+web/.env.production.local
+redis-8.2.1/redis.conf
+
 # Django
 db.sqlite3
 staticfiles/
