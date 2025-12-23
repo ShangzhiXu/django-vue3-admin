@@ -116,10 +116,6 @@
 							</el-tag>
 						</div>
 						<div class="info-item">
-							<span class="info-label">项目：</span>
-							<span class="info-value">{{ workorderData.project || '-' }}</span>
-						</div>
-						<div class="info-item">
 							<span class="info-label">问题描述：</span>
 							<span class="info-value">{{ workorderData.problem_description || '-' }}</span>
 						</div>

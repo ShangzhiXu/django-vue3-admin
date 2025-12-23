@@ -64,7 +64,7 @@
 							{{ workorder.merchant_name }} - {{ workorder.problem_description || '无问题描述' }}
 						</div>
 						<div class="workorder-details">
-							工单号:{{ workorder.workorder_no }} | 负责人:{{ workorder.project_manager_name || '未设置' }}
+							工单号:{{ workorder.workorder_no }} | 检查人:{{ workorder.inspector_name || '未设置' }} | 包保责任人:{{ workorder.responsible_person_name || '未设置' }}
 							{{ workorder.merchant_phone ? `(${workorder.merchant_phone})` : '' }}
 						</div>
 						<div class="workorder-status">

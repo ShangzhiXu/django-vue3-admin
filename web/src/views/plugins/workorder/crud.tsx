@@ -50,8 +50,23 @@ const CHECK_ITEMS_MAP: Record<string, string[]> = {
 };
 
 export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOptionsProps): CreateCrudOptionsRet {
-	// 项目负责人选择的 tableConfig，动态更新 extraParams
-	const projectManagerTableConfig = ref({
+	// 检查人选择的 tableConfig，动态更新 extraParams
+	const inspectorTableConfig = ref({
+		url: '/api/system/user/',
+		label: 'name',
+		value: 'id',
+		columns: [
+			{ prop: 'name', label: '姓名', width: 120 },
+			{ prop: 'username', label: '账号', width: 120 },
+			{ prop: 'mobile', label: '电话', width: 150 },
+		],
+		isMultiple: false,
+		pagination: true,
+		extraParams: {} as any,
+	});
+	
+	// 包保责任人选择的 tableConfig，动态更新 extraParams
+	const responsiblePersonTableConfig = ref({
 		url: '/api/system/user/',
 		label: 'name',
 		value: 'id',
@@ -292,52 +307,20 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						},
 					},
 				},
-				hazard_level: {
-					title: '隐患等级',
-					type: 'dict-select',
-					dict: dict({
-						data: [
-							{ label: '高', value: 'high' },
-							{ label: '中', value: 'medium' },
-							{ label: '低', value: 'low' },
-						],
-					}),
+				deadline: {
+					title: '截止时间',
+					type: 'date',
 					search: {
 						show: true,
 					},
 					column: {
-						minWidth: 100,
+						minWidth: 120,
 						align: 'center',
-						formatter: (context: any) => {
-							// 优先使用后端返回的中文显示值
-							if (context.row.hazard_level_display) {
-								return context.row.hazard_level_display;
-							}
-							// 如果没有，则根据值映射
-							const levelMap: { [key: string]: string } = {
-								'high': '高',
-								'medium': '中',
-								'low': '低',
-							};
-							return levelMap[context.value] || context.value || '-';
-						},
-						component: {
-							name: 'fs-dict-tag',
-							props: {
-								colors: {
-									high: 'danger',
-									medium: 'warning',
-									low: 'success',
-								},
-							},
-						},
 					},
 					form: {
-						rules: [
-							{ required: true, message: '请选择隐患等级' },
-						],
 						component: {
-							placeholder: '请选择隐患等级',
+							placeholder: '请选择截止时间',
+							'value-format': 'YYYY-MM-DD',
 						},
 					},
 				},
@@ -360,7 +343,6 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						align: 'center',
 					},
 					form: {
-						rules: [{ required: true, message: '请选择检查类别' }],
 						component: {
 							placeholder: '请选择检查类别',
 						},
@@ -383,7 +365,6 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						showOverflowTooltip: true,
 					},
 					form: {
-						rules: [{ required: true, message: '请选择检查问题' }],
 						component: {
 							render({ form }: any) {
 								const category = form.check_category as string | undefined;
@@ -441,9 +422,6 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						showOverflowTooltip: true,
 					},
 					form: {
-						rules: [
-							{ required: true, message: '请输入问题描述' },
-						],
 						component: {
 							placeholder: '请输入问题描述',
 							props: {
@@ -488,89 +466,14 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						},
 					},
 				},
-				task: {
-					title: '关联任务',
+				inspector_dept: {
+					title: '检查人部门',
 					type: 'table-selector',
 					search: {
 						show: false,
 					},
 					column: {
-						minWidth: 150,
-						align: 'center',
-						formatter: (context: any) => {
-							// 如果后端返回了任务对象，显示任务名称
-							if (context.row.task && typeof context.row.task === 'object') {
-								return context.row.task.name || '-';
-							}
-							// 如果后端返回了任务名称字段
-							if (context.row.task_name) {
-								return context.row.task_name;
-							}
-							// 如果只是ID，显示ID或"-"
-							return context.value ? `任务ID: ${context.value}` : '-';
-						},
-					},
-					form: {
-						component: {
-							name: shallowRef(tableSelector),
-							props: {
-								tableConfig: {
-									url: '/api/task/',
-									label: 'name',
-									value: 'id',
-									columns: [
-										{ prop: 'name', label: '任务名称', width: 200 },
-										{ prop: 'cycle', label: '周期', width: 100 },
-									],
-									isMultiple: false,
-									pagination: true,
-								},
-							},
-						},
-						valueChange(context: any) {
-							// 当选择任务时，自动从任务继承项目负责人
-							const { form, value } = context;
-							if (value) {
-								// 获取任务详情，提取负责人
-								request({
-									url: `/api/task/${value}/`,
-									method: 'get',
-								}).then((res: any) => {
-									if (res.data && res.data.manager) {
-										// 如果项目负责人为空，则自动填充
-										if (!form.project_manager) {
-											form.project_manager = res.data.manager;
-										}
-									}
-								}).catch(() => {
-									// 忽略错误
-								});
-							}
-						},
-					},
-				},
-				project_manager_dept: {
-					title: '项目负责人部门',
-					type: 'table-selector',
-					search: {
 						show: false,
-					},
-					column: {
-						minWidth: 120,
-						formatter: (context: any) => {
-							// 如果后端返回了项目负责人部门名称
-							if (context.row.project_manager_dept_name) {
-								return context.row.project_manager_dept_name;
-							}
-							// 如果后端返回了项目负责人对象，通过项目负责人的部门获取
-							if (context.row.project_manager && typeof context.row.project_manager === 'object' && context.row.project_manager.dept) {
-								if (typeof context.row.project_manager.dept === 'object') {
-									return context.row.project_manager.dept.name || '-';
-								}
-							}
-							// 如果有部门ID，通过ID获取（这里可能需要异步获取，暂时显示ID）
-							return context.value ? `部门ID: ${context.value}` : '-';
-						},
 					},
 					form: {
 						component: {
@@ -588,25 +491,25 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 								},
 							},
 							span: 12,
-							placeholder: '请先选择部门',
+							placeholder: '请先选择检查人部门',
 						},
 					},
 					valueChange(context: any) {
-						// 当部门改变时，清空项目负责人选择并更新过滤参数
+						// 当部门改变时，清空检查人选择并更新过滤参数
 						const { form } = context;
-						if (form.project_manager) {
-							form.project_manager = null;
+						if (form.inspector) {
+							form.inspector = null;
 						}
-						// 更新项目负责人选择的过滤参数
-						if (form.project_manager_dept) {
-							projectManagerTableConfig.value.extraParams = { dept: form.project_manager_dept, show_all: 1 };
+						// 更新检查人选择的过滤参数
+						if (form.inspector_dept) {
+							inspectorTableConfig.value.extraParams = { dept: form.inspector_dept, show_all: 1 };
 						} else {
-							projectManagerTableConfig.value.extraParams = {};
+							inspectorTableConfig.value.extraParams = {};
 						}
 					},
 				},
-				project_manager: {
-					title: '项目负责人',
+				inspector: {
+					title: '检查人',
 					type: 'table-selector',
 					search: {
 						show: false,
@@ -615,13 +518,13 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						minWidth: 120,
 						align: 'center',
 						formatter: (context: any) => {
-							// 如果后端返回了项目负责人名称
-							if (context.row.project_manager_name) {
-								return context.row.project_manager_name;
+							// 如果后端返回了检查人名称
+							if (context.row.inspector_name) {
+								return context.row.inspector_name;
 							}
-							// 如果后端返回了项目负责人对象
-							if (context.row.project_manager && typeof context.row.project_manager === 'object') {
-								return context.row.project_manager.name || '-';
+							// 如果后端返回了检查人对象
+							if (context.row.inspector && typeof context.row.inspector === 'object') {
+								return context.row.inspector.name || '-';
 							}
 							return context.value ? `用户ID: ${context.value}` : '-';
 						},
@@ -630,10 +533,84 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						component: {
 							name: shallowRef(tableSelector),
 							props: {
-								tableConfig: projectManagerTableConfig,
+								tableConfig: inspectorTableConfig,
 							},
 							span: 12,
-							placeholder: '请先选择部门，再选择项目负责人（默认从任务继承）',
+							placeholder: '请先选择部门，再选择检查人（默认从任务继承）',
+						},
+					},
+				},
+				responsible_person_dept: {
+					title: '包保责任人部门',
+					type: 'table-selector',
+					search: {
+						show: false,
+					},
+					column: {
+						show: false,
+					},
+					form: {
+						component: {
+							name: shallowRef(tableSelector),
+							props: {
+								tableConfig: {
+									url: '/api/system/dept/',
+									label: 'name',
+									value: 'id',
+									columns: [
+										{ prop: 'name', label: '部门名称', width: 200 },
+									],
+									isMultiple: false,
+									pagination: true,
+								},
+							},
+							span: 12,
+							placeholder: '请先选择包保责任人部门',
+						},
+					},
+					valueChange(context: any) {
+						// 当部门改变时，清空包保责任人选择并更新过滤参数
+						const { form } = context;
+						if (form.responsible_person) {
+							form.responsible_person = null;
+						}
+						// 更新包保责任人选择的过滤参数
+						if (form.responsible_person_dept) {
+							responsiblePersonTableConfig.value.extraParams = { dept: form.responsible_person_dept, show_all: 1 };
+						} else {
+							responsiblePersonTableConfig.value.extraParams = {};
+						}
+					},
+				},
+				responsible_person: {
+					title: '包保责任人',
+					type: 'table-selector',
+					search: {
+						show: false,
+					},
+					column: {
+						minWidth: 120,
+						align: 'center',
+						formatter: (context: any) => {
+							// 如果后端返回了包保责任人名称
+							if (context.row.responsible_person_name) {
+								return context.row.responsible_person_name;
+							}
+							// 如果后端返回了包保责任人对象
+							if (context.row.responsible_person && typeof context.row.responsible_person === 'object') {
+								return context.row.responsible_person.name || '-';
+							}
+							return context.value ? `用户ID: ${context.value}` : '-';
+						},
+					},
+					form: {
+						component: {
+							name: shallowRef(tableSelector),
+							props: {
+								tableConfig: responsiblePersonTableConfig,
+							},
+							span: 12,
+							placeholder: '请先选择部门，再选择包保责任人',
 						},
 					},
 				},
@@ -683,47 +660,6 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						show: false,
 					},
 				},
-				deadline: {
-					title: '截止时间',
-					type: 'date',
-					search: {
-						show: true,
-					},
-					column: {
-						minWidth: 120,
-						align: 'center',
-					},
-					form: {
-						rules: [
-							{ required: true, message: '请选择截止时间' },
-						],
-						component: {
-							placeholder: '请选择截止时间',
-							'value-format': 'YYYY-MM-DD',
-						},
-					},
-				},
-				project: {
-					title: '项目',
-					type: 'input',
-					search: {
-						show: true,
-						component: {
-							props: {
-								clearable: true,
-							},
-							placeholder: '请输入项目名称',
-						},
-					},
-					column: {
-						minWidth: 150,
-					},
-					form: {
-						component: {
-							placeholder: '请输入项目名称',
-						},
-					},
-				},
 				status: {
 					title: '状态',
 					type: 'dict-select',
@@ -771,6 +707,113 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						value: 0, // 默认值为待整改
 						component: {
 							placeholder: '请选择状态',
+						},
+					},
+				},
+				task: {
+					title: '关联任务',
+					type: 'table-selector',
+					search: {
+						show: false,
+					},
+					column: {
+						minWidth: 150,
+						align: 'center',
+						formatter: (context: any) => {
+							// 如果后端返回了任务对象，显示任务名称
+							if (context.row.task && typeof context.row.task === 'object') {
+								return context.row.task.name || '-';
+							}
+							// 如果后端返回了任务名称字段
+							if (context.row.task_name) {
+								return context.row.task_name;
+							}
+							// 如果只是ID，显示ID或"-"
+							return context.value ? `任务ID: ${context.value}` : '-';
+						},
+					},
+					form: {
+						component: {
+							name: shallowRef(tableSelector),
+							props: {
+								tableConfig: {
+									url: '/api/task/',
+									label: 'name',
+									value: 'id',
+									columns: [
+										{ prop: 'name', label: '任务名称', width: 200 },
+										{ prop: 'cycle', label: '周期', width: 100 },
+									],
+									isMultiple: false,
+									pagination: true,
+								},
+							},
+						},
+						valueChange(context: any) {
+							// 当选择任务时，自动从任务继承检查人
+							const { form, value } = context;
+							if (value) {
+								// 获取任务详情，提取负责人
+								request({
+									url: `/api/task/${value}/`,
+									method: 'get',
+								}).then((res: any) => {
+									if (res.data && res.data.manager) {
+										// 如果检查人为空，则自动填充
+										if (!form.inspector) {
+											form.inspector = res.data.manager;
+										}
+									}
+								}).catch(() => {
+									// 忽略错误
+								});
+							}
+						},
+					},
+				},
+				hazard_level: {
+					title: '隐患等级',
+					type: 'dict-select',
+					dict: dict({
+						data: [
+							{ label: '高', value: 'high' },
+							{ label: '中', value: 'medium' },
+							{ label: '低', value: 'low' },
+						],
+					}),
+					search: {
+						show: true,
+					},
+					column: {
+						minWidth: 100,
+						align: 'center',
+						formatter: (context: any) => {
+							// 优先使用后端返回的中文显示值
+							if (context.row.hazard_level_display) {
+								return context.row.hazard_level_display;
+							}
+							// 如果没有，则根据值映射
+							const levelMap: { [key: string]: string } = {
+								'high': '高',
+								'medium': '中',
+								'low': '低',
+							};
+							return levelMap[context.value] || context.value || '-';
+						},
+						component: {
+							name: 'fs-dict-tag',
+							props: {
+								colors: {
+									high: 'danger',
+									medium: 'warning',
+									low: 'success',
+								},
+							},
+						},
+					},
+					form: {
+						component: {
+							placeholder: '请选择隐患等级',
 						},
 					},
 				},

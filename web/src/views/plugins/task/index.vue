@@ -31,7 +31,6 @@
 				<el-table-column type="index" label="序号" width="70" align="center" />
 				<el-table-column prop="workorder_no" label="工单号" min-width="150" align="center" />
 				<el-table-column prop="merchant_name" label="商户名称" min-width="150" />
-				<el-table-column prop="project" label="项目" min-width="120" />
 				<el-table-column prop="hazard_level_display" label="隐患等级" width="100" align="center">
 					<template #default="scope">
 						<el-tag
