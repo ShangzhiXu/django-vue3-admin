@@ -12,12 +12,12 @@
 		<div class="filter-section">
 			<el-form :inline="true" :model="filterForm" class="filter-form">
 				<el-form-item label="逾期时长">
-					<el-select v-model="filterForm.overdue_hours" placeholder="请选择" style="width: 200px">
+					<el-select v-model="filterForm.overdue_hours" placeholder="全部" style="width: 200px" clearable>
+						<el-option label="全部" value="" />
 						<el-option label="超过24小时" value="24" />
 						<el-option label="超过48小时" value="48" />
 						<el-option label="超过72小时" value="72" />
 						<el-option label="超过7天" value="168" />
-						<el-option label="全部" value="" />
 					</el-select>
 				</el-form-item>
 				<el-form-item label="问题类型">
@@ -64,7 +64,7 @@
 							{{ workorder.merchant_name }} - {{ workorder.problem_description || '无问题描述' }}
 						</div>
 						<div class="workorder-details">
-							工单号:{{ workorder.workorder_no }} | 检查人:{{ workorder.inspector_name || '未设置' }} | 包保责任人:{{ workorder.responsible_person_name || '未设置' }}
+							工单号:{{ workorder.workorder_no }} | 检查人:{{ workorder.inspector_name || '未设置' }} | 包保责任人:{{ workorder.responsible_person_name || '未设置' }} | 移交负责人:{{ workorder.transfer_person_name || '未移交' }}
 							{{ workorder.merchant_phone ? `(${workorder.merchant_phone})` : '' }}
 						</div>
 						<div class="workorder-status">
@@ -85,8 +85,12 @@
 					>
 						{{ workorder.lag_level.label }}
 					</el-tag>
+						<el-tag v-if="workorder.is_transferred" type="success" size="small">已移交</el-tag>
 					<br />
-					<el-link type="primary" @click="handleViewDetail(workorder.id)">查看详情</el-link>
+					<div class="card-actions">
+						<el-button type="primary" link @click="handleViewDetail(workorder.id)">查看详情</el-button>
+						<el-button type="warning" link @click="openTransferDialog(workorder)">移交</el-button>
+					</div>
 				</div>
 			</div>
 
@@ -121,6 +125,46 @@
 				:workorder-id="currentWorkorderId"
 			/>
 		</el-drawer>
+
+		<!-- 移交弹窗 -->
+		<el-dialog v-model="transferDialogVisible" title="工单移交" width="500px" :close-on-click-modal="false">
+			<el-form label-width="100px">
+				<el-form-item label="移交负责人" required>
+					<el-select
+						v-model="transferForm.transfer_person"
+						placeholder="请选择移交负责人"
+						filterable
+						remote
+						:remote-method="loadTransferUsers"
+						:loading="transferLoading"
+						style="width: 100%"
+					>
+						<el-option
+							v-for="user in transferUserOptions"
+							:key="user.id"
+							:label="user.name || user.username"
+							:value="user.id"
+						/>
+					</el-select>
+				</el-form-item>
+				<el-form-item label="备注">
+					<el-input
+						v-model="transferForm.transfer_remark"
+						type="textarea"
+						placeholder="请输入备注（可选）"
+						:rows="3"
+						maxlength="500"
+						show-word-limit
+					/>
+				</el-form-item>
+			</el-form>
+			<template #footer>
+				<span class="dialog-footer">
+					<el-button @click="transferDialogVisible = false">取 消</el-button>
+					<el-button type="primary" :loading="transferLoading" @click="submitTransfer">确 定</el-button>
+				</span>
+			</template>
+		</el-dialog>
 	</div>
 </template>
 
@@ -130,13 +174,14 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { Promotion } from '@element-plus/icons-vue';
 import * as api from './api';
 import workorderDetail from '../workorder/detail.vue';
+import { request } from '/@/utils/service';
 
 const detailDrawerVisible = ref(false);
 const currentWorkorderId = ref<number | string | null>(null);
 
 // 筛选表单
 const filterForm = reactive({
-	overdue_hours: '24', // 默认超过24小时
+	overdue_hours: '', // 默认全部
 	hazard_level: '', // 全部
 });
 
@@ -144,6 +189,16 @@ const filterForm = reactive({
 const workorderList = ref<any[]>([]);
 const loading = ref(false);
 const selectedWorkorders = ref<number[]>([]);
+
+// 移交弹窗
+const transferDialogVisible = ref(false);
+const transferLoading = ref(false);
+const transferForm = reactive({
+	workorderId: null as number | null,
+	transfer_person: null as number | null,
+	transfer_remark: '',
+});
+const transferUserOptions = ref<any[]>([]);
 
 // 分页
 const pagination = reactive({
@@ -248,6 +303,65 @@ const handleViewDetail = (id: number) => {
 	// 打开工单详情抽屉
 	currentWorkorderId.value = id;
 	detailDrawerVisible.value = true;
+};
+
+// 打开移交弹窗
+const openTransferDialog = (workorder: any) => {
+	transferForm.workorderId = workorder.id;
+	transferForm.transfer_person = workorder.transfer_person || null;
+	transferForm.transfer_remark = workorder.transfer_remark || '';
+	transferDialogVisible.value = true;
+	loadTransferUsers();
+};
+
+// 加载可选移交负责人
+const loadTransferUsers = async (keyword: string = '') => {
+	try {
+		const res: any = await request({
+			url: '/api/system/user/',
+			method: 'get',
+			params: {
+				page: 1,
+				limit: 50,
+				search: keyword || undefined,
+			},
+		});
+		if (res && res.data && res.data.results) {
+			transferUserOptions.value = res.data.results;
+		} else if (res && res.data && Array.isArray(res.data)) {
+			transferUserOptions.value = res.data;
+		}
+	} catch (error) {
+		// 忽略加载错误，保持已有列表
+	}
+};
+
+// 确认移交
+const submitTransfer = async () => {
+	if (!transferForm.workorderId) return;
+	if (!transferForm.transfer_person) {
+		ElMessage.warning('请选择移交负责人');
+		return;
+	}
+	transferLoading.value = true;
+	try {
+		const res = await api.TransferWorkorder(transferForm.workorderId, {
+			transfer_person: transferForm.transfer_person,
+			transfer_remark: transferForm.transfer_remark,
+		});
+		if (res.code === 2000) {
+			ElMessage.success('移交成功');
+			transferDialogVisible.value = false;
+			loadWorkorders();
+		} else {
+			ElMessage.error(res.msg || '移交失败');
+		}
+	} catch (error) {
+		ElMessage.error('移交失败');
+		console.error(error);
+	} finally {
+		transferLoading.value = false;
+	}
 };
 
 // 页面加载时获取数据
@@ -383,6 +497,17 @@ onMounted(() => {
 	.card-right {
 		text-align: right;
 		min-width: 120px;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 6px;
+
+		.card-actions {
+			display: flex;
+			flex-direction: column;
+			gap: 4px;
+			align-items: flex-end;
+		}
 	}
 }
 

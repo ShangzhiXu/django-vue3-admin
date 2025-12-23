@@ -80,6 +80,21 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 		extraParams: {} as any,
 	});
 	
+	// 移交负责人选择的 tableConfig
+	const transferPersonTableConfig = ref({
+		url: '/api/system/user/',
+		label: 'name',
+		value: 'id',
+		columns: [
+			{ prop: 'name', label: '姓名', width: 120 },
+			{ prop: 'username', label: '账号', width: 120 },
+			{ prop: 'mobile', label: '电话', width: 150 },
+		],
+		isMultiple: false,
+		pagination: true,
+		extraParams: {} as any,
+	});
+	
 	const pageRequest = async (query: UserPageQuery) => {
 		// 根据状态标签筛选
 		const currentTab = context?.statusTab?.value || context?.statusTab;
@@ -466,6 +481,44 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						},
 					},
 				},
+				is_transferred: {
+					title: '是否已移交',
+					type: 'dict-select',
+					dict: dict({
+						data: [
+							{ label: '否', value: false },
+							{ label: '是', value: true },
+						],
+					}),
+					search: {
+						show: true,
+					},
+					column: {
+						minWidth: 120,
+						align: 'center',
+						formatter: (context: any) => (context.value ? '是' : '否'),
+						component: {
+							name: 'fs-dict-tag',
+							props: {
+								colors: {
+									true: 'success',
+									false: 'info',
+								},
+							},
+						},
+					},
+					form: {
+						value: false,
+						component: {
+							placeholder: '是否已移交',
+						},
+						valueChange({ form, value }: any) {
+							if (!value) {
+								form.transfer_person = null;
+							}
+						},
+					},
+				},
 				inspector_dept: {
 					title: '检查人部门',
 					type: 'table-selector',
@@ -611,6 +664,36 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 							},
 							span: 12,
 							placeholder: '请先选择部门，再选择包保责任人',
+						},
+					},
+				},
+				transfer_person: {
+					title: '移交负责人',
+					type: 'table-selector',
+					search: {
+						show: false,
+					},
+					column: {
+						minWidth: 120,
+						align: 'center',
+						formatter: (context: any) => {
+							if (context.row.transfer_person_name) {
+								return context.row.transfer_person_name;
+							}
+							if (context.row.transfer_person && typeof context.row.transfer_person === 'object') {
+								return context.row.transfer_person.name || '-';
+							}
+							return context.value ? `用户ID: ${context.value}` : '-';
+						},
+					},
+					form: {
+						component: {
+							name: shallowRef(tableSelector),
+							props: {
+								tableConfig: transferPersonTableConfig,
+							},
+							span: 12,
+							placeholder: '请选择移交负责人（可选）',
 						},
 					},
 				},

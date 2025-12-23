@@ -153,6 +153,18 @@
 							</span>
 						</div>
 						<div class="info-item">
+							<span class="info-label">是否已移交：</span>
+							<span class="info-value">
+								<el-tag :type="workorderData.is_transferred ? 'success' : 'info'" size="small">
+									{{ workorderData.is_transferred ? '是' : '否' }}
+								</el-tag>
+							</span>
+						</div>
+						<div class="info-item">
+							<span class="info-label">移交负责人：</span>
+							<span class="info-value">{{ workorderData.transfer_person_name || '-' }}</span>
+						</div>
+						<div class="info-item">
 							<span class="info-label">上报时间：</span>
 							<span class="info-value">{{ formatDateTime(workorderData.report_time) }}</span>
 						</div>

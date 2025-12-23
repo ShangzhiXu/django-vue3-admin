@@ -116,6 +116,24 @@ class WorkOrder(CoreModel):
         verbose_name='整改类别',
         help_text='当场整改、限期整改、移交整改'
     )
+
+    # 是否已移交
+    is_transferred = models.BooleanField(default=False, db_index=True, verbose_name='是否已移交', help_text='是否已移交整改')
+
+    # 移交负责人
+    transfer_person = models.ForeignKey(
+        'system.Users',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='transferred_workorders',
+        db_constraint=False,
+        verbose_name='移交负责人',
+        help_text='移交负责人'
+    )
+
+    # 移交备注
+    transfer_remark = models.TextField(null=True, blank=True, verbose_name='移交备注', help_text='移交备注')
     
     # 上报时间（自动记录创建时间）
     report_time = models.DateTimeField(auto_now_add=True, verbose_name='上报时间', help_text='上报时间')

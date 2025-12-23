@@ -12,6 +12,15 @@ export function GetWorkOrderList(query: UserPageQuery) {
 	});
 }
 
+// 工单移交
+export function TransferWorkorder(id: number, data: { transfer_person: number; transfer_remark?: string }) {
+	return request({
+		url: `/api/workorder/${id}/transfer/`,
+		method: 'post',
+		data,
+	});
+}
+
 // 批量推送督办通知
 export function BatchPush(data: { workorder_ids: number[]; regulatory_unit?: string; push_method?: string }) {
 	return request({

@@ -34,6 +34,8 @@ class WorkOrderSerializer(CustomModelSerializer):
     task_name = serializers.SerializerMethodField(read_only=True)
     inspector_name = serializers.SerializerMethodField(read_only=True)
     responsible_person_name = serializers.SerializerMethodField(read_only=True)
+    transfer_person_name = serializers.SerializerMethodField(read_only=True)
+    transfer_remark = serializers.CharField(read_only=True)
     rectification_category_display = serializers.SerializerMethodField(read_only=True)
     
     def get_merchant_name(self, obj):
@@ -74,6 +76,12 @@ class WorkOrderSerializer(CustomModelSerializer):
         """获取包保责任人名称"""
         if obj.responsible_person:
             return obj.responsible_person.name
+        return None
+
+    def get_transfer_person_name(self, obj):
+        """获取移交负责人名称"""
+        if obj.transfer_person:
+            return obj.transfer_person.name
         return None
     
     def get_rectification_category_display(self, obj):
@@ -170,6 +178,20 @@ class WorkOrderCreateSerializer(CustomModelSerializer):
                 target_type=0,
             )
 
+        # 通知移交负责人（仅在标记为已移交且存在负责人时）
+        if getattr(workorder, 'is_transferred', False) and getattr(workorder, 'transfer_person', None):
+            title = f"移交工单提醒：{workorder.workorder_no}"
+            content = f"工单“{workorder.workorder_no}”已移交给你，请跟进处理。"
+            if workorder.merchant:
+                content += f"\n商户：{getattr(workorder.merchant, 'name', '')}"
+            send_notification_to_user(
+                user=workorder.transfer_person,
+                title=title,
+                content=content,
+                request=request,
+                target_type=0,
+            )
+
         return workorder
 
 
@@ -192,6 +214,8 @@ class WorkOrderExportSerializer(CustomModelSerializer):
     check_category_display = serializers.SerializerMethodField(read_only=True)
     inspector_name = serializers.SerializerMethodField(read_only=True)
     responsible_person_name = serializers.SerializerMethodField(read_only=True)
+    transfer_person_name = serializers.SerializerMethodField(read_only=True)
+    transfer_remark = serializers.CharField(read_only=True)
     hazard_level = serializers.SerializerMethodField(read_only=True)
     status = serializers.SerializerMethodField(read_only=True)
     task_name = serializers.SerializerMethodField(read_only=True)
@@ -221,6 +245,12 @@ class WorkOrderExportSerializer(CustomModelSerializer):
         if obj.responsible_person:
             return obj.responsible_person.name
         return ""
+
+    def get_transfer_person_name(self, obj):
+        """返回移交负责人名称"""
+        if obj.transfer_person:
+            return obj.transfer_person.name
+        return ""
     
     def get_hazard_level(self, obj):
         """返回隐患等级的中文显示值"""
@@ -247,6 +277,9 @@ class WorkOrderExportSerializer(CustomModelSerializer):
             "check_item",
             "inspector_name",
             "responsible_person_name",
+            "is_transferred",
+            "transfer_person_name",
+            "transfer_remark",
             "hazard_level",
             "problem_description",
             "rectification_category",
@@ -270,11 +303,11 @@ class WorkOrderViewSet(CustomModelViewSet):
     retrieve:单例
     destroy:删除
     """
-    queryset = WorkOrder.objects.select_related('merchant', 'task', 'inspector', 'responsible_person', 'task__manager').all()
+    queryset = WorkOrder.objects.select_related('merchant', 'task', 'inspector', 'responsible_person', 'transfer_person', 'task__manager').all()
     serializer_class = WorkOrderSerializer
     create_serializer_class = WorkOrderCreateSerializer
     update_serializer_class = WorkOrderUpdateSerializer
-    filter_fields = ['status', 'hazard_level', 'deadline']
+    filter_fields = ['status', 'hazard_level', 'deadline', 'is_transferred']
     search_fields = ['workorder_no']
     extra_filter_class = []
     
@@ -286,6 +319,9 @@ class WorkOrderViewSet(CustomModelViewSet):
         "check_item": "检查问题",
         "inspector_name": "检查人",
         "responsible_person_name": "包保责任人",
+        "is_transferred": "是否已移交",
+        "transfer_person_name": "移交负责人",
+        "transfer_remark": "移交备注",
         "hazard_level": "隐患等级",
         "problem_description": "问题描述",
         "rectification_category": "整改类别",
@@ -334,6 +370,39 @@ class WorkOrderViewSet(CustomModelViewSet):
             queryset = queryset.filter(report_time__lte=report_time_before)
         
         return queryset
+
+    @action(methods=['post'], detail=True)
+    def transfer(self, request, pk=None):
+        """
+        设置移交负责人并标记为已移交
+        """
+        workorder = self.get_object()
+        transfer_person_id = request.data.get('transfer_person')
+        transfer_remark = request.data.get('transfer_remark', '')
+
+        if not transfer_person_id:
+            return DetailResponse(msg="请选择移交负责人", code=400)
+
+        try:
+            transfer_person = Users.objects.get(id=transfer_person_id)
+        except Users.DoesNotExist:
+            return DetailResponse(msg="移交负责人不存在", code=400)
+
+        workorder.is_transferred = True
+        workorder.transfer_person = transfer_person
+        workorder.transfer_remark = transfer_remark
+        workorder.save(update_fields=['is_transferred', 'transfer_person', 'transfer_remark', 'update_datetime'])
+
+        # 发送通知
+        send_notification_to_user(
+            user=transfer_person,
+            title=f"移交工单提醒：{workorder.workorder_no}",
+            content=f"工单“{workorder.workorder_no}”已移交给你，请跟进处理。",
+            request=request,
+            target_type=0,
+        )
+
+        return DetailResponse(msg="移交成功", data={"id": workorder.id})
     
     @action(methods=['post'], detail=False)
     def batch_supervise(self, request):
@@ -406,8 +475,9 @@ class MobileWorkOrderView(APIView):
             workorders = WorkOrder.objects.filter(
                 Q(inspector__mobile=phone) |  # 检查人手机号匹配
                 Q(responsible_person__mobile=phone) |  # 包保责任人手机号匹配
+                Q(transfer_person__mobile=phone) |  # 移交负责人手机号匹配
                 Q(task__manager__mobile=phone)  # 任务负责人手机号匹配
-            ).select_related('merchant', 'task', 'inspector', 'responsible_person', 'task__manager').order_by('-create_datetime')
+            ).select_related('merchant', 'task', 'inspector', 'responsible_person', 'transfer_person', 'task__manager').order_by('-create_datetime')
             
             # 获取负责人信息（用于返回）
             manager_name = None
@@ -421,6 +491,9 @@ class MobileWorkOrderView(APIView):
                 elif first_workorder.responsible_person and first_workorder.responsible_person.mobile == phone:
                     manager_name = first_workorder.responsible_person.name
                     manager_id = first_workorder.responsible_person.id
+                elif first_workorder.transfer_person and first_workorder.transfer_person.mobile == phone:
+                    manager_name = first_workorder.transfer_person.name
+                    manager_id = first_workorder.transfer_person.id
                 elif first_workorder.task and first_workorder.task.manager and first_workorder.task.manager.mobile == phone:
                     manager_name = first_workorder.task.manager.name
                     manager_id = first_workorder.task.manager.id
