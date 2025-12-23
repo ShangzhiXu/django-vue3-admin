@@ -35,9 +35,6 @@ class WorkOrder(CoreModel):
         help_text='该工单所属的任务'
     )
     
-    # 项目
-    project = models.CharField(max_length=255, null=True, blank=True, verbose_name='项目', help_text='项目名称')
-
     # 检查类别（例如：安全管理类、燃气类、消防类、液体燃料类）
     CHECK_CATEGORY_CHOICES = (
         ('safety_manage', '安全管理类'),
@@ -63,16 +60,28 @@ class WorkOrder(CoreModel):
         help_text='具体检查问题，来自预设问题列表'
     )
     
-    # 项目负责人（关联用户表）
-    project_manager = models.ForeignKey(
+    # 检查人（关联用户表）
+    inspector = models.ForeignKey(
         'system.Users',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='managed_workorders',
+        related_name='inspected_workorders',
         db_constraint=False,
-        verbose_name='项目负责人',
-        help_text='项目负责人，默认从任务继承'
+        verbose_name='检查人',
+        help_text='检查人'
+    )
+    
+    # 包保责任人（关联用户表）
+    responsible_person = models.ForeignKey(
+        'system.Users',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='responsible_workorders',
+        db_constraint=False,
+        verbose_name='包保责任人',
+        help_text='包保责任人'
     )
     
     # 隐患等级
@@ -84,6 +93,8 @@ class WorkOrder(CoreModel):
     hazard_level = models.CharField(
         max_length=20,
         choices=HAZARD_LEVEL_CHOICES,
+        null=True,
+        blank=True,
         verbose_name='隐患等级',
         help_text='隐患等级'
     )
@@ -110,7 +121,7 @@ class WorkOrder(CoreModel):
     report_time = models.DateTimeField(auto_now_add=True, verbose_name='上报时间', help_text='上报时间')
     
     # 截止时间
-    deadline = models.DateField(verbose_name='截止时间', help_text='截止时间')
+    deadline = models.DateField(null=True, blank=True, verbose_name='截止时间', help_text='截止时间')
     
     # 工单状态
     STATUS_CHOICES = (

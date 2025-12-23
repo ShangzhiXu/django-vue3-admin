@@ -240,11 +240,10 @@ class TaskCreateSerializer(CustomModelSerializer):
                     workorder_no=workorder_no,
                     merchant=merchant,
                     task=task,
-                    project_manager=task.manager,  # 从任务继承项目负责人
+                    inspector=task.manager,  # 从任务继承检查人
                     hazard_level='medium',  # 默认隐患等级为中等
                     deadline=deadline,
                     status=0,  # 默认状态为待整改
-                    project=task.name,  # 使用任务名称作为项目名称
                 )
                 
                 # 序号递增，为下一个工单准备

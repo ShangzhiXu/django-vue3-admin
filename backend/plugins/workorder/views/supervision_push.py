@@ -18,7 +18,8 @@ class SupervisionPushWorkOrderSerializer(CustomModelSerializer):
     merchant_manager = serializers.SerializerMethodField(read_only=True)
     merchant_phone = serializers.SerializerMethodField(read_only=True)
     hazard_level_display = serializers.SerializerMethodField(read_only=True)
-    project_manager_name = serializers.SerializerMethodField(read_only=True)
+    inspector_name = serializers.SerializerMethodField(read_only=True)
+    responsible_person_name = serializers.SerializerMethodField(read_only=True)
     overdue_days = serializers.SerializerMethodField(read_only=True)
     overdue_hours = serializers.SerializerMethodField(read_only=True)
     overdue_duration_display = serializers.SerializerMethodField(read_only=True)
@@ -41,12 +42,16 @@ class SupervisionPushWorkOrderSerializer(CustomModelSerializer):
         """获取隐患等级的中文显示值"""
         return obj.get_hazard_level_display() if obj.hazard_level else None
     
-    def get_project_manager_name(self, obj):
-        """获取项目负责人名称"""
-        if obj.project_manager:
-            return obj.project_manager.name
-        if obj.task and obj.task.manager:
-            return obj.task.manager.name
+    def get_inspector_name(self, obj):
+        """获取检查人名称"""
+        if obj.inspector:
+            return obj.inspector.name
+        return None
+    
+    def get_responsible_person_name(self, obj):
+        """获取包保责任人名称"""
+        if obj.responsible_person:
+            return obj.responsible_person.name
         return None
     
     def get_overdue_days(self, obj):
@@ -109,8 +114,8 @@ class SupervisionPushWorkOrderSerializer(CustomModelSerializer):
         model = WorkOrder
         fields = [
             "id", "workorder_no", "merchant_name", "merchant_manager", "merchant_phone",
-            "project", "hazard_level", "hazard_level_display", "problem_description",
-            "report_time", "deadline", "status", "project_manager_name",
+            "hazard_level", "hazard_level_display", "problem_description",
+            "report_time", "deadline", "status", "inspector_name", "responsible_person_name",
             "overdue_days", "overdue_hours", "overdue_duration_display",
             "lag_level", "last_feedback", "create_datetime"
         ]
@@ -164,7 +169,7 @@ class SupervisionPushViewSet(CustomModelViewSet):
         # 基础查询：查询已逾期或已被督办的工单（status=3或deadline已过或is_supervised=True）
         queryset = WorkOrder.objects.filter(
             Q(status=3) | Q(deadline__lt=date.today()) | Q(is_supervised=True)
-        ).select_related('merchant', 'task', 'project_manager').order_by('-deadline')
+        ).select_related('merchant', 'task', 'inspector', 'responsible_person').order_by('-deadline')
         
         # 按逾期时长筛选
         if overdue_hours:

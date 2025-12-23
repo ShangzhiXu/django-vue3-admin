@@ -51,11 +51,16 @@ class HomeViewSet(ViewSet):
             .exclude(manager__isnull=True)
             .values_list('manager_id', flat=True)
         )
-        # 本月创建的工单的项目负责人
+        # 本月创建的工单的检查人和包保责任人
         active_user_ids.update(
             WorkOrder.objects.filter(create_datetime__gte=this_month_start)
-            .exclude(project_manager__isnull=True)
-            .values_list('project_manager_id', flat=True)
+            .exclude(inspector__isnull=True)
+            .values_list('inspector_id', flat=True)
+        )
+        active_user_ids.update(
+            WorkOrder.objects.filter(create_datetime__gte=this_month_start)
+            .exclude(responsible_person__isnull=True)
+            .values_list('responsible_person_id', flat=True)
         )
         active_users = len(active_user_ids) if active_user_ids else 0
         
@@ -147,29 +152,30 @@ class HomeViewSet(ViewSet):
             create_datetime__date=today
         ).exclude(hazard_level__isnull=True).count()
         
-        # 2. 问题类型分布（根据工单的项目字段分类）
-        # 消防
+        # 2. 问题类型分布（根据工单的检查类别分类）
+        # 消防类
         fire_count = WorkOrder.objects.filter(
-            project__icontains='消防'
+            check_category='fire'
         ).count()
         
-        # 卫生
-        health_count = WorkOrder.objects.filter(
-            project__icontains='卫生'
+        # 燃气类
+        gas_count = WorkOrder.objects.filter(
+            check_category='gas'
         ).count()
         
-        # 证照
-        license_count = WorkOrder.objects.filter(
-            project__icontains='证照'
+        # 安全管理类
+        safety_count = WorkOrder.objects.filter(
+            check_category='safety_manage'
         ).count()
         
-        # 其他（不包含消防、卫生、证照的）
-        other_count = WorkOrder.objects.exclude(
-            project__icontains='消防'
-        ).exclude(
-            project__icontains='卫生'
-        ).exclude(
-            project__icontains='证照'
+        # 液体燃料类
+        liquid_fuel_count = WorkOrder.objects.filter(
+            check_category='liquid_fuel'
+        ).count()
+        
+        # 其他（未分类的）
+        other_count = WorkOrder.objects.filter(
+            check_category__isnull=True
         ).count()
         
         # 3. 实时预警动态（待整改的工单，按创建时间倒序）
@@ -196,20 +202,50 @@ class HomeViewSet(ViewSet):
         # 4. 人员绩效Top5（按负责的工单数量排序）
         from django.db.models import Count
         
-        # 统计每个项目负责人负责的工单数量
-        performance_data = WorkOrder.objects.filter(
-            project_manager__isnull=False
-        ).values('project_manager__id', 'project_manager__name').annotate(
+        # 统计每个检查人和包保责任人负责的工单数量
+        from django.db.models import Q
+        # 统计检查人
+        inspector_data = WorkOrder.objects.filter(
+            inspector__isnull=False
+        ).values('inspector__id', 'inspector__name').annotate(
             workorder_count=Count('id')
-        ).order_by('-workorder_count')[:5]
+        )
+        # 统计包保责任人
+        responsible_data = WorkOrder.objects.filter(
+            responsible_person__isnull=False
+        ).values('responsible_person__id', 'responsible_person__name').annotate(
+            workorder_count=Count('id')
+        )
         
-        performance_list = []
-        for idx, item in enumerate(performance_data, 1):
-            performance_list.append({
-                'rank': idx,
-                'name': item['project_manager__name'] or '未知',
-                'count': item['workorder_count'],
-            })
+        # 合并统计（按用户ID合并）
+        user_performance = {}
+        for item in inspector_data:
+            user_id = item['inspector__id']
+            if user_id not in user_performance:
+                user_performance[user_id] = {
+                    'name': item['inspector__name'] or '未知',
+                    'count': 0
+                }
+            user_performance[user_id]['count'] += item['workorder_count']
+        
+        for item in responsible_data:
+            user_id = item['responsible_person__id']
+            if user_id not in user_performance:
+                user_performance[user_id] = {
+                    'name': item['responsible_person__name'] or '未知',
+                    'count': 0
+                }
+            user_performance[user_id]['count'] += item['workorder_count']
+        
+        # 排序并取前5
+        performance_list = sorted(
+            [{'name': v['name'], 'count': v['count']} for v in user_performance.values()],
+            key=lambda x: x['count'],
+            reverse=True
+        )[:5]
+        
+        for idx, item in enumerate(performance_list, 1):
+            item['rank'] = idx
         
         data = {
             'today_overview': {
@@ -219,8 +255,9 @@ class HomeViewSet(ViewSet):
             },
             'problem_distribution': {
                 'fire': fire_count,
-                'health': health_count,
-                'license': license_count,
+                'gas': gas_count,
+                'safety': safety_count,
+                'liquid_fuel': liquid_fuel_count,
                 'other': other_count,
             },
             'warnings': warning_list,

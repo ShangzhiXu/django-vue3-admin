@@ -25,8 +25,8 @@ class WorkOrderSerializer(CustomModelSerializer):
     hazard_level_display = serializers.SerializerMethodField(read_only=True)
     status_display = serializers.SerializerMethodField(read_only=True)
     task_name = serializers.SerializerMethodField(read_only=True)
-    project_manager_name = serializers.SerializerMethodField(read_only=True)
-    project_manager_dept_name = serializers.SerializerMethodField(read_only=True)
+    inspector_name = serializers.SerializerMethodField(read_only=True)
+    responsible_person_name = serializers.SerializerMethodField(read_only=True)
     rectification_category_display = serializers.SerializerMethodField(read_only=True)
     
     def get_merchant_name(self, obj):
@@ -53,22 +53,16 @@ class WorkOrderSerializer(CustomModelSerializer):
         """获取关联任务名称"""
         return obj.task.name if obj.task else None
     
-    def get_project_manager_name(self, obj):
-        """获取项目负责人名称"""
-        if obj.project_manager:
-            return obj.project_manager.name
-        # 如果没有设置项目负责人，尝试从任务继承
-        if obj.task and obj.task.manager:
-            return obj.task.manager.name
+    def get_inspector_name(self, obj):
+        """获取检查人名称"""
+        if obj.inspector:
+            return obj.inspector.name
         return None
     
-    def get_project_manager_dept_name(self, obj):
-        """获取项目负责人部门名称"""
-        if obj.project_manager and obj.project_manager.dept:
-            return obj.project_manager.dept.name
-        # 如果没有设置项目负责人，尝试从任务继承
-        if obj.task and obj.task.manager and obj.task.manager.dept:
-            return obj.task.manager.dept.name
+    def get_responsible_person_name(self, obj):
+        """获取包保责任人名称"""
+        if obj.responsible_person:
+            return obj.responsible_person.name
         return None
     
     def get_rectification_category_display(self, obj):
@@ -121,12 +115,12 @@ class WorkOrderCreateSerializer(CustomModelSerializer):
         # 生成工单号
         validated_data['workorder_no'] = f'WO{date_str}{sequence:03d}'
         
-        # 如果未设置项目负责人，且有关联任务，则从任务继承
-        if not validated_data.get('project_manager') and validated_data.get('task'):
+        # 如果未设置检查人，且有关联任务，则从任务继承
+        if not validated_data.get('inspector') and validated_data.get('task'):
             from plugins.task.models import Task
             task = validated_data['task']
             if isinstance(task, Task) and task.manager:
-                validated_data['project_manager'] = task.manager
+                validated_data['inspector'] = task.manager
         
         return super().create(validated_data)
 
@@ -148,8 +142,8 @@ class WorkOrderExportSerializer(CustomModelSerializer):
     """
     merchant_name = serializers.SerializerMethodField(read_only=True)
     check_category_display = serializers.SerializerMethodField(read_only=True)
-    project_manager_dept_name = serializers.SerializerMethodField(read_only=True)
-    project_manager_name = serializers.SerializerMethodField(read_only=True)
+    inspector_name = serializers.SerializerMethodField(read_only=True)
+    responsible_person_name = serializers.SerializerMethodField(read_only=True)
     hazard_level = serializers.SerializerMethodField(read_only=True)
     status = serializers.SerializerMethodField(read_only=True)
     task_name = serializers.SerializerMethodField(read_only=True)
@@ -168,22 +162,16 @@ class WorkOrderExportSerializer(CustomModelSerializer):
         """返回检查类别的中文显示值"""
         return obj.get_check_category_display() if obj.check_category else ""
     
-    def get_project_manager_dept_name(self, obj):
-        """返回项目负责人部门名称"""
-        if obj.project_manager and obj.project_manager.dept:
-            return obj.project_manager.dept.name
-        # 如果项目负责人没有部门，尝试从关联任务的负责人部门获取
-        if obj.task and obj.task.manager and obj.task.manager.dept:
-            return obj.task.manager.dept.name
+    def get_inspector_name(self, obj):
+        """返回检查人名称"""
+        if obj.inspector:
+            return obj.inspector.name
         return ""
     
-    def get_project_manager_name(self, obj):
-        """返回项目负责人名称"""
-        if obj.project_manager:
-            return obj.project_manager.name
-        # 如果没有设置项目负责人，尝试从任务继承
-        if obj.task and obj.task.manager:
-            return obj.task.manager.name
+    def get_responsible_person_name(self, obj):
+        """返回包保责任人名称"""
+        if obj.responsible_person:
+            return obj.responsible_person.name
         return ""
     
     def get_hazard_level(self, obj):
@@ -209,9 +197,8 @@ class WorkOrderExportSerializer(CustomModelSerializer):
             "merchant_name",
             "check_category_display",
             "check_item",
-            "project",
-            "project_manager_dept_name",
-            "project_manager_name",
+            "inspector_name",
+            "responsible_person_name",
             "hazard_level",
             "problem_description",
             "rectification_category",
@@ -235,7 +222,7 @@ class WorkOrderViewSet(CustomModelViewSet):
     retrieve:单例
     destroy:删除
     """
-    queryset = WorkOrder.objects.select_related('merchant', 'task', 'project_manager', 'project_manager__dept', 'task__manager', 'task__manager__dept').all()
+    queryset = WorkOrder.objects.select_related('merchant', 'task', 'inspector', 'responsible_person', 'task__manager').all()
     serializer_class = WorkOrderSerializer
     create_serializer_class = WorkOrderCreateSerializer
     update_serializer_class = WorkOrderUpdateSerializer
@@ -249,9 +236,8 @@ class WorkOrderViewSet(CustomModelViewSet):
         "merchant_name": "商户名称",
         "check_category_display": "检查类别",
         "check_item": "检查问题",
-        "project": "项目",
-        "project_manager_dept_name": "项目负责人部门",
-        "project_manager_name": "项目负责人",
+        "inspector_name": "检查人",
+        "responsible_person_name": "包保责任人",
         "hazard_level": "隐患等级",
         "problem_description": "问题描述",
         "rectification_category": "整改类别",
@@ -368,21 +354,25 @@ class MobileWorkOrderView(APIView):
                 }, status=400, content_type='application/json')
             
             # 直接用手机号作为负责人索引查询工单
-            # 包括：1. project_manager的手机号匹配的工单 2. project_manager为空但task的manager手机号匹配的工单
+            # 包括：1. inspector的手机号匹配的工单 2. responsible_person的手机号匹配的工单 3. task的manager手机号匹配的工单
             workorders = WorkOrder.objects.filter(
-                Q(project_manager__mobile=phone) |  # 直接设置的项目负责人手机号匹配
-                Q(project_manager__isnull=True, task__manager__mobile=phone)  # 从任务继承的负责人手机号匹配
-            ).select_related('merchant', 'task', 'project_manager', 'task__manager').order_by('-create_datetime')
+                Q(inspector__mobile=phone) |  # 检查人手机号匹配
+                Q(responsible_person__mobile=phone) |  # 包保责任人手机号匹配
+                Q(task__manager__mobile=phone)  # 任务负责人手机号匹配
+            ).select_related('merchant', 'task', 'inspector', 'responsible_person', 'task__manager').order_by('-create_datetime')
             
             # 获取负责人信息（用于返回）
             manager_name = None
             manager_id = None
-            # 尝试从工单的project_manager获取，如果没有则从task的manager获取
+            # 尝试从工单的inspector、responsible_person或task的manager获取
             first_workorder = workorders.first()
             if first_workorder:
-                if first_workorder.project_manager and first_workorder.project_manager.mobile == phone:
-                    manager_name = first_workorder.project_manager.name
-                    manager_id = first_workorder.project_manager.id
+                if first_workorder.inspector and first_workorder.inspector.mobile == phone:
+                    manager_name = first_workorder.inspector.name
+                    manager_id = first_workorder.inspector.id
+                elif first_workorder.responsible_person and first_workorder.responsible_person.mobile == phone:
+                    manager_name = first_workorder.responsible_person.name
+                    manager_id = first_workorder.responsible_person.id
                 elif first_workorder.task and first_workorder.task.manager and first_workorder.task.manager.mobile == phone:
                     manager_name = first_workorder.task.manager.name
                     manager_id = first_workorder.task.manager.id
