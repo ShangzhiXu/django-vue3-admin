@@ -64,3 +64,11 @@ export function resetToDefaultPassword(id:any){
         method: 'put'
     })
 }
+
+export function NotifyUser(id: number, data: { title: string; content: string }) {
+    return request({
+        url: apiPrefix + id + '/notify/',
+        method: 'post',
+        data,
+    });
+}

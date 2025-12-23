@@ -65,3 +65,31 @@ export function CompleteObj(id: number) {
 	});
 }
 
+export function GetWorkOrderPhotos(workorderNo: string) {
+	return request({
+		url: `/api/mobile/workorders/${workorderNo}/photos/list`,
+		method: 'get',
+	});
+}
+
+export function GetWorkOrderRechecks(workorderNo: string) {
+	return request({
+		url: `/api/mobile/workorders/${workorderNo}/rechecks`,
+		method: 'get',
+	});
+}
+
+export function GetWorkOrderSubmissions(workorderNo: string) {
+	return request({
+		url: `/api/mobile/workorders/${workorderNo}/submissions`,
+		method: 'get',
+	});
+}
+
+export function DeleteWorkOrderSubmission(workorderNo: string, submissionId: number) {
+	return request({
+		url: `/api/mobile/workorders/${workorderNo}/submissions/${submissionId}`,
+		method: 'delete',
+	});
+}
+

@@ -91,7 +91,7 @@ export const createCrudOptions = function ({ crudExpose }: CreateCrudOptionsProp
             rowHandle: {
                 //固定右侧
                 fixed: 'right',
-                width: 200,
+                width: 260,
                 buttons: {
                     view: {
                         show: false,
@@ -115,6 +115,59 @@ export const createCrudOptions = function ({ crudExpose }: CreateCrudOptionsProp
                             '确定重置为系统默认密码吗？', '提示',
                             { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
                         ).then(() => resetToDefaultPasswordRequest(ctx.row))
+                    },
+                    notify: {
+                        text: '发送通知',
+                        type: 'text',
+                        iconRight: 'Bell',
+                        show: auth('user:Update'), // 也可以单独加一个权限码，比如 'user:Notify'
+                        click: async ({ row }: any) => {
+                            try {
+                                // 第一步：输入标题（可选）
+                                const { value: title } = await ElMessageBox.prompt(
+                                    '请输入通知标题（可选）',
+                                    '发送通知',
+                                    {
+                                        confirmButtonText: '下一步',
+                                        cancelButtonText: '取消',
+                                        inputValue: `来自管理员的通知`,
+                                        inputPlaceholder: '请输入通知标题',
+                                        closeOnClickModal: false,
+                                        draggable: true,
+                                    }
+                                );
+
+                                // 第二步：输入内容（必填，使用 textarea）
+                                const { value: content } = await ElMessageBox.prompt(
+                                    '请输入通知内容',
+                                    '发送通知',
+                                    {
+                                        confirmButtonText: '发送',
+                                        cancelButtonText: '取消',
+                                        inputPlaceholder: `您好，${row.name || row.username}：`,
+                                        inputType: 'textarea',
+                                        inputValidator: (val: string) => {
+                                            if (!val || !val.trim()) {
+                                                return '通知内容不能为空';
+                                            }
+                                            return true;
+                                        },
+                                        closeOnClickModal: false,
+                                        draggable: true,
+                                    }
+                                );
+
+                                await api.NotifyUser(row.id, {
+                                    title: title || '系统通知',
+                                    content: content,
+                                });
+                                successMessage('通知已发送');
+                            } catch (e: any) {
+                                // 取消不提示错误，其它情况打印日志
+                                if (e === 'cancel' || e === 'close') return;
+                                console.error(e);
+                            }
+                        },
                     },
                 },
             },

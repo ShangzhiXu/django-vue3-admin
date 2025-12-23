@@ -20,6 +20,16 @@
 					待复查
 				</el-tag>
 			</div>
+			<div class="header-actions">
+				<el-button
+					:icon="Refresh"
+					@click="handleRefresh"
+					:loading="loading"
+					circle
+					size="large"
+					title="刷新"
+				/>
+			</div>
 		</div>
 
 		<!-- 主要内容区域 -->
@@ -39,7 +49,20 @@
 								:type="item.type"
 							>
 								<div class="timeline-content">
-									<div class="timeline-event">{{ item.event }}</div>
+									<div class="timeline-header">
+										<div class="timeline-event">{{ item.event }}</div>
+										<el-button
+											v-if="isAdmin && item.submissionId"
+											type="danger"
+											:icon="Delete"
+											size="small"
+											text
+											@click="handleDeleteSubmission(item.submissionId, item.event)"
+											title="删除此进度"
+										>
+											删除
+										</el-button>
+									</div>
 									<div class="timeline-details" v-if="item.details">
 										{{ item.details }}
 									</div>
@@ -50,9 +73,10 @@
 										<div
 											v-for="(img, imgIndex) in item.images"
 											:key="imgIndex"
-											class="image-placeholder"
+											class="image-item"
+											@click="previewImage(img.url, item.images)"
 										>
-											[现场图{{ imgIndex + 1 }}]
+											<img :src="getImageUrl(img.url)" :alt="img.filename || `现场图${Number(imgIndex) + 1}`" />
 										</div>
 									</div>
 								</div>
@@ -136,6 +160,10 @@
 							<span class="info-label">截止时间：</span>
 							<span class="info-value">{{ formatDate(workorderData.deadline) }}</span>
 						</div>
+						<div class="info-item" v-if="workorderData.remark">
+							<span class="info-label">备注：</span>
+							<span class="info-value">{{ workorderData.remark }}</span>
+						</div>
 					</div>
 				</div>
 
@@ -179,7 +207,8 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { ArrowLeft, Bell, Refresh, Close } from '@element-plus/icons-vue';
+import { ArrowLeft, Bell, Refresh, Close, Delete } from '@element-plus/icons-vue';
+import { useUserInfo } from '/@/stores/userInfo';
 import * as api from './api';
 
 // 定义 props
@@ -189,11 +218,18 @@ const props = defineProps<{
 
 const route = useRoute();
 const router = useRouter();
+const userInfoStore = useUserInfo();
 
 const loading = ref(false);
 const workorderData = ref<any>({});
 const progressList = ref<any[]>([]);
 const reviewList = ref<any[]>([]);
+
+// 判断是否是管理员
+const isAdmin = computed(() => {
+	return userInfoStore.userInfos.is_superuser || 
+	       (userInfoStore.userInfos.role_info && userInfoStore.userInfos.role_info.some((role: any) => role.key === 'admin' || role.name === '管理员'));
+});
 
 // 计算逾期天数
 const overdueDays = computed(() => {
@@ -236,7 +272,7 @@ const loadWorkorderDetail = async () => {
 
 	loading.value = true;
 	try {
-		const res = await api.GetObj(id);
+		const res = await api.GetObj(id as any);
 		if (res.data) {
 			workorderData.value = res.data;
 			// 构建进度列表
@@ -252,8 +288,14 @@ const loadWorkorderDetail = async () => {
 	}
 };
 
+// 刷新工单详情
+const handleRefresh = async () => {
+	await loadWorkorderDetail();
+	ElMessage.success('刷新成功');
+};
+
 // 构建进度列表
-const buildProgressList = () => {
+const buildProgressList = async () => {
 	const list: any[] = [];
 	
 	// 1. 发现隐患（自动创建）
@@ -278,15 +320,70 @@ const buildProgressList = () => {
 		});
 	}
 
-	// 3. 如果有完成时间，添加完成记录
-	if (workorderData.value.completed_time) {
-		list.push({
-			time: formatDateTime(workorderData.value.completed_time),
-			event: '工单完成',
-			type: 'success',
-			details: '工单已完成整改',
-		});
+	// 3. 加载所有提交记录（包括首次提交和复查）
+	if (workorderData.value.workorder_no) {
+		try {
+			const submissionsRes = await api.GetWorkOrderSubmissions(workorderData.value.workorder_no);
+			if (submissionsRes.data && submissionsRes.data.submissions && submissionsRes.data.submissions.length > 0) {
+				// 将所有提交记录添加到进度列表
+				submissionsRes.data.submissions.forEach((submission: any) => {
+					const submissionImages = submission.photos ? submission.photos.map((photo: any) => ({
+						url: photo.url,
+						filename: photo.filename
+					})) : [];
+					
+					const remarkText = submission.remark ? `备注：${submission.remark}` : '';
+					
+					// 根据是否为复查和是否合格生成事件和详情
+					let eventText = '';
+					let detailsText = '';
+					let type = '';
+					
+					if (submission.is_recheck === 1) {
+						// 复查
+						if (submission.is_qualified === 1) {
+							eventText = '复查合格';
+							type = 'success';
+							detailsText = `复查合格${remarkText ? '\n' + remarkText : ''}`;
+						} else {
+							eventText = '复查不合格';
+							type = 'warning';
+							detailsText = `复查不合格，需重新整改${remarkText ? '\n' + remarkText : ''}`;
+						}
+					} else {
+						// 首次提交
+						if (submission.is_qualified === 1) {
+							eventText = '合格';
+							type = 'success';
+							detailsText = `工单已完成整改${remarkText ? '\n' + remarkText : ''}`;
+						} else {
+							eventText = '不合格';
+							type = 'warning';
+							detailsText = `巡查员提交不合格，发现隐患${remarkText ? '\n' + remarkText : ''}`;
+						}
+					}
+					
+					list.push({
+						time: submission.submit_time,
+						event: eventText,
+						type: type,
+						details: detailsText,
+						images: submissionImages,
+						submissionId: submission.id, // 添加提交记录ID，用于删除
+					});
+				});
+			}
+		} catch (error) {
+			console.error('加载提交记录失败:', error);
+		}
 	}
+
+	// 按时间排序（最新的在前）
+	list.sort((a, b) => {
+		const timeA = new Date(a.time).getTime();
+		const timeB = new Date(b.time).getTime();
+		return timeB - timeA;
+	});
 
 	progressList.value = list;
 };
@@ -295,6 +392,34 @@ const buildProgressList = () => {
 const buildReviewList = () => {
 	// 暂时为空，后续可以从后端获取复查记录
 	reviewList.value = [];
+};
+
+// 删除提交记录
+const handleDeleteSubmission = async (submissionId: number, eventText: string) => {
+	try {
+		await ElMessageBox.confirm(
+			`确定要删除"${eventText}"这条进度记录吗？删除后将无法恢复。`,
+			'确认删除',
+			{
+				confirmButtonText: '确定',
+				cancelButtonText: '取消',
+				type: 'warning',
+			}
+		);
+
+		// 调用删除接口
+		await api.DeleteWorkOrderSubmission(workorderData.value.workorder_no, submissionId);
+		
+		ElMessage.success('删除成功');
+		
+		// 重新加载工单详情
+		await loadWorkorderDetail();
+	} catch (error: any) {
+		if (error !== 'cancel') {
+			console.error('删除提交记录失败:', error);
+			ElMessage.error(error?.msg || '删除失败');
+		}
+	}
 };
 
 // 格式化日期时间
@@ -315,6 +440,30 @@ const formatDateTime = (dateTime: string | null) => {
 const formatDate = (date: string | null) => {
 	if (!date) return '-';
 	return date.split('T')[0];
+};
+
+// 获取图片URL（处理相对路径）
+const getImageUrl = (url: string) => {
+	if (!url) return '';
+	// 如果已经是完整URL，直接返回
+	if (url.startsWith('http://') || url.startsWith('https://')) {
+		return url;
+	}
+	// 如果是相对路径，添加API前缀
+	if (url.startsWith('/media/')) {
+		return `${import.meta.env.VITE_API_URL || ''}${url}`;
+	}
+	return url;
+};
+
+// 预览图片
+const previewImage = (url: string, images: any[]) => {
+	// 使用Element Plus的图片预览功能
+	const imageList = images.map((img: any) => getImageUrl(img.url));
+	const currentIndex = images.findIndex((img: any) => img.url === url);
+	// 这里可以使用Element Plus的图片预览组件
+	// 暂时使用浏览器原生的图片预览
+	window.open(getImageUrl(url), '_blank');
 };
 
 // 格式化手机号（隐藏中间4位）
@@ -419,6 +568,7 @@ onMounted(() => {
 .detail-header {
 	display: flex;
 	align-items: center;
+	justify-content: space-between;
 	margin-bottom: 24px;
 	background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
 	padding: 20px 24px;
@@ -432,7 +582,7 @@ onMounted(() => {
 		color: #303133;
 		display: flex;
 		align-items: center;
-		width: 100%;
+		flex: 1;
 		
 		.el-tag {
 			margin-left: 16px;
@@ -440,6 +590,12 @@ onMounted(() => {
 			padding: 6px 16px;
 			border-radius: 20px;
 		}
+	}
+
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: 12px;
 	}
 }
 
@@ -498,11 +654,17 @@ onMounted(() => {
 }
 
 .timeline-content {
+	.timeline-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 10px;
+	}
+
 	.timeline-event {
 		font-size: 15px;
 		font-weight: 600;
 		color: #303133;
-		margin-bottom: 10px;
 	}
 
 	.timeline-details {
@@ -510,6 +672,7 @@ onMounted(() => {
 		color: #606266;
 		margin-bottom: 10px;
 		line-height: 1.6;
+		white-space: pre-line; // 支持换行显示
 	}
 
 	.timeline-description {
@@ -525,20 +688,30 @@ onMounted(() => {
 
 	.timeline-images {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 12px;
 		margin-top: 12px;
 
-		.image-placeholder {
+		.image-item {
 			width: 120px;
 			height: 80px;
-			background: #f5f7fa;
-			border: 1px dashed #dcdfe6;
 			border-radius: 4px;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			font-size: 12px;
-			color: #909399;
+			overflow: hidden;
+			cursor: pointer;
+			border: 1px solid #dcdfe6;
+			transition: all 0.3s ease;
+			
+			&:hover {
+				border-color: #409eff;
+				transform: scale(1.05);
+				box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+			}
+			
+			img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
 		}
 	}
 }
