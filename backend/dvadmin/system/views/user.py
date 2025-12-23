@@ -9,6 +9,7 @@ from django.db import connection
 from django.db.models import Q
 from application import dispatch
 from dvadmin.system.models import Users, Role, Dept
+from dvadmin.system.utils.notifications import send_notification_to_user
 from dvadmin.system.views.role import RoleSerializer
 from dvadmin.utils.json_response import ErrorResponse, DetailResponse, SuccessResponse
 from dvadmin.utils.serializers import CustomModelSerializer
@@ -435,3 +436,40 @@ class UserViewSet(CustomModelViewSet):
         serializer = self.get_serializer(queryset, many=True, request=request)
 
         return SuccessResponse(data=serializer.data, msg="获取成功")
+
+    @action(methods=["POST"], detail=True, permission_classes=[IsAuthenticated])
+    def notify(self, request, pk=None):
+        """
+        管理员在用户管理中，给单个用户发送通知
+        """
+        user = self.get_object()
+        title = request.data.get("title") or "系统通知"
+        content = request.data.get("content") or ""
+
+        if not content:
+            return ErrorResponse(msg="通知内容不能为空")
+
+        # 只有管理员或超级管理员才能发送通知
+        request_user = request.user
+        is_admin_role = False
+        try:
+            roles = request_user.role.values_list("key", flat=True)
+            is_admin_role = "admin" in roles
+        except Exception:
+            pass
+
+        if not (request_user.is_superuser or is_admin_role):
+            return ErrorResponse(msg="只有管理员可以发送通知", code=403)
+
+        message = send_notification_to_user(
+            user=user,
+            title=title,
+            content=content,
+            request=request,
+            target_type=0,
+        )
+
+        return DetailResponse(
+            data={"message_id": getattr(message, "id", None)},
+            msg="通知已发送"
+        )

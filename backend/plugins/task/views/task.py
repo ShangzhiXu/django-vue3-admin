@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from dvadmin.utils.serializers import CustomModelSerializer
 from dvadmin.utils.viewset import CustomModelViewSet
 from dvadmin.utils.json_response import DetailResponse
+from dvadmin.system.utils.notifications import send_notification_to_user
 from plugins.task.models import Task
 from plugins.merchant.models import Merchant
 from plugins.workorder.models import WorkOrder
@@ -203,6 +204,31 @@ class TaskCreateSerializer(CustomModelSerializer):
         """创建任务，处理多对多字段，并为每个覆盖商户创建工单"""
         merchants = validated_data.pop('merchants', [])
         task = super().create(validated_data)
+
+        # 创建任务后，给任务负责人发送通知
+        try:
+            request = self.context.get('request')
+        except Exception:
+            request = None
+        if getattr(task, 'manager', None):
+            # 构建通知内容
+            start_time = getattr(task, 'start_time', None)
+            end_time = getattr(task, 'end_time', None)
+            time_range_text = ''
+            if start_time and end_time:
+                time_range_text = f"{start_time.strftime('%Y-%m-%d')} ~ {end_time.strftime('%Y-%m-%d')}"
+            title = f"新任务提醒：{task.name}"
+            content = f"你被设为任务“{task.name}”的负责人。"
+            if time_range_text:
+                content += f"\n任务时间：{time_range_text}"
+            send_notification_to_user(
+                user=task.manager,
+                title=title,
+                content=content,
+                request=request,
+                target_type=0,  # 按用户
+            )
+
         if merchants:
             task.merchants.set(merchants)
             # 为每个覆盖商户创建工单

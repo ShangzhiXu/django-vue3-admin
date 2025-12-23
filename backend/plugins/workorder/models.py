@@ -151,6 +151,101 @@ class WorkOrder(CoreModel):
         return f"{self.workorder_no} - {self.merchant.name if self.merchant else '未关联商户'}"
 
 
+class WorkOrderSubmission(CoreModel):
+    """
+    工单提交记录模型（包括首次提交和复查）
+    """
+    # 关联工单
+    workorder = models.ForeignKey(
+        'WorkOrder',
+        on_delete=models.CASCADE,
+        related_name='submissions',
+        db_constraint=False,
+        verbose_name='工单',
+        help_text='关联的工单'
+    )
+    
+    # 提交时间
+    submit_time = models.DateTimeField(auto_now_add=True, verbose_name='提交时间', help_text='提交时间')
+    
+    # 是否为复查（0=否，1=是）
+    is_recheck = models.IntegerField(default=0, choices=[(0, '否'), (1, '是')], verbose_name='是否为复查', help_text='0=否，1=是')
+    
+    # 是否合格（0=不合格，1=合格）
+    is_qualified = models.IntegerField(default=0, choices=[(0, '不合格'), (1, '合格')], verbose_name='是否合格', help_text='0=不合格，1=合格')
+    
+    # 备注
+    remark = models.TextField(null=True, blank=True, verbose_name='备注', help_text='提交备注')
+    
+    # 提交人（关联用户表）
+    submitter = models.ForeignKey(
+        'system.Users',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='submitted_workorders',
+        db_constraint=False,
+        verbose_name='提交人',
+        help_text='提交人'
+    )
+    
+    class Meta:
+        db_table = table_prefix + "workorder_submission"
+        verbose_name = "工单提交记录"
+        verbose_name_plural = verbose_name
+        ordering = ('-submit_time',)
+    
+    def __str__(self):
+        recheck_text = "复查" if self.is_recheck == 1 else "首次提交"
+        qualified_text = "合格" if self.is_qualified == 1 else "不合格"
+        return f"{self.workorder.workorder_no} - {recheck_text} - {qualified_text} - {self.submit_time}"
+
+
+class WorkOrderRecheck(CoreModel):
+    """
+    工单复查记录模型（保留以兼容旧代码，实际使用WorkOrderSubmission）
+    """
+    # 关联工单
+    workorder = models.ForeignKey(
+        'WorkOrder',
+        on_delete=models.CASCADE,
+        related_name='rechecks',
+        db_constraint=False,
+        verbose_name='工单',
+        help_text='关联的工单'
+    )
+    
+    # 复查时间
+    recheck_time = models.DateTimeField(auto_now_add=True, verbose_name='复查时间', help_text='复查时间')
+    
+    # 是否合格（0=不合格，1=合格）
+    is_qualified = models.IntegerField(default=0, choices=[(0, '不合格'), (1, '合格')], verbose_name='是否合格', help_text='0=不合格，1=合格')
+    
+    # 备注
+    remark = models.TextField(null=True, blank=True, verbose_name='备注', help_text='复查备注')
+    
+    # 复查人（关联用户表）
+    rechecker = models.ForeignKey(
+        'system.Users',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='rechecked_workorders',
+        db_constraint=False,
+        verbose_name='复查人',
+        help_text='复查人'
+    )
+    
+    class Meta:
+        db_table = table_prefix + "workorder_recheck"
+        verbose_name = "工单复查记录"
+        verbose_name_plural = verbose_name
+        ordering = ('-recheck_time',)
+    
+    def __str__(self):
+        return f"{self.workorder.workorder_no} - {self.get_is_qualified_display()} - {self.recheck_time}"
+
+
 class SupervisionPush(CoreModel):
     """
     督办推送记录模型
