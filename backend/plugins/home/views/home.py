@@ -200,10 +200,7 @@ class HomeViewSet(ViewSet):
                 })
         
         # 4. 人员绩效Top5（按负责的工单数量排序）
-        from django.db.models import Count
-        
         # 统计每个检查人和包保责任人负责的工单数量
-        from django.db.models import Q
         # 统计检查人
         inspector_data = WorkOrder.objects.filter(
             inspector__isnull=False
