@@ -8,6 +8,7 @@ from dvadmin.utils.serializers import CustomModelSerializer
 from dvadmin.utils.viewset import CustomModelViewSet
 from dvadmin.utils.json_response import DetailResponse
 from plugins.workorder.models import WorkOrder, SupervisionPush
+from dvadmin.system.utils.notifications import send_notification_to_user
 
 
 class SupervisionPushWorkOrderSerializer(CustomModelSerializer):
@@ -243,8 +244,10 @@ class SupervisionPushViewSet(CustomModelViewSet):
         if not workorder_ids:
             return DetailResponse(msg="请选择要推送的工单", code=400)
         
-        # 获取工单
-        workorders = WorkOrder.objects.filter(id__in=workorder_ids)
+        # 获取工单（使用 select_related 优化查询，避免 N+1 问题）
+        workorders = WorkOrder.objects.filter(id__in=workorder_ids).select_related(
+            'merchant', 'inspector', 'responsible_person', 'transfer_person'
+        )
         if not workorders.exists():
             return DetailResponse(msg="工单不存在", code=400)
         
@@ -273,15 +276,68 @@ class SupervisionPushViewSet(CustomModelViewSet):
         # 关联工单
         push_record.workorders.set(workorders)
         
+        # 给每个工单的移交负责人、包保负责人、检查人发送小程序通知
+        notification_count = 0
+        
+        for wo in workorders:
+            overdue_days = (date.today() - wo.deadline).days if wo.deadline else 0
+            merchant_name = wo.merchant.name if wo.merchant else '未知'
+            
+            # 通知检查人
+            if getattr(wo, 'inspector', None):
+                title = f"督办通知：{wo.workorder_no}"
+                content = f"工单\"{wo.workorder_no}\"已被督办，请尽快处理。\n商户：{merchant_name}"
+                if overdue_days > 0:
+                    content += f"\n逾期：{overdue_days}天"
+                send_notification_to_user(
+                    user=wo.inspector,
+                    title=title,
+                    content=content,
+                    request=request,
+                    target_type=0,
+                )
+                notification_count += 1
+            
+            # 通知包保负责人
+            if getattr(wo, 'responsible_person', None):
+                title = f"督办通知：{wo.workorder_no}"
+                content = f"工单\"{wo.workorder_no}\"已被督办，请关注整改情况。\n商户：{merchant_name}"
+                if overdue_days > 0:
+                    content += f"\n逾期：{overdue_days}天"
+                send_notification_to_user(
+                    user=wo.responsible_person,
+                    title=title,
+                    content=content,
+                    request=request,
+                    target_type=0,
+                )
+                notification_count += 1
+            
+            # 通知移交负责人（如果工单已移交）
+            if getattr(wo, 'is_transferred', False) and getattr(wo, 'transfer_person', None):
+                title = f"督办通知：{wo.workorder_no}"
+                content = f"工单\"{wo.workorder_no}\"已被督办，请跟进处理。\n商户：{merchant_name}"
+                if overdue_days > 0:
+                    content += f"\n逾期：{overdue_days}天"
+                send_notification_to_user(
+                    user=wo.transfer_person,
+                    title=title,
+                    content=content,
+                    request=request,
+                    target_type=0,
+                )
+                notification_count += 1
+        
         # TODO: 这里可以接入实际的推送服务（短信、邮件等）
         # 暂时只是记录，不实际发送
         
         return DetailResponse(
             data={
                 'push_id': push_record.id,
-                'count': workorders.count()
+                'count': workorders.count(),
+                'notification_count': notification_count
             },
-            msg=f"已成功推送 {workorders.count()} 个工单的督办通知"
+            msg=f"已成功推送 {workorders.count()} 个工单的督办通知，已发送 {notification_count} 条小程序通知"
         )
     
     @action(methods=['get'], detail=False, url_path='history')
