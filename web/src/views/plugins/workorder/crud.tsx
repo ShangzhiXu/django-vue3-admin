@@ -323,7 +323,7 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 					},
 				},
 				deadline: {
-					title: '截止时间',
+					title: '整改时限',
 					type: 'date',
 					search: {
 						show: true,
@@ -334,7 +334,7 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 					},
 					form: {
 						component: {
-							placeholder: '请选择截止时间',
+							placeholder: '请选择整改时限',
 							'value-format': 'YYYY-MM-DD',
 						},
 					},

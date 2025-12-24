@@ -183,12 +183,12 @@ class SupervisionPushViewSet(CustomModelViewSet):
         if overdue_hours:
             try:
                 hours = int(overdue_hours)
-                # 计算最早截止时间（现在减去逾期小时数）
+                # 计算最早整改时限（现在减去逾期小时数）
                 # 由于 USE_TZ = False，使用 naive datetime
                 cutoff_datetime = datetime.now() - timedelta(hours=hours)
                 # 转换为date对象，因为deadline是DateField
                 cutoff_date = cutoff_datetime.date()
-                # 筛选截止时间早于cutoff_date的工单
+                # 筛选整改时限早于cutoff_date的工单
                 queryset = queryset.filter(deadline__lte=cutoff_date)
             except (ValueError, TypeError):
                 pass

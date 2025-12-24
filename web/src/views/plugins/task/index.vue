@@ -49,7 +49,7 @@
 						</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column prop="deadline" label="截止时间" width="120" align="center">
+				<el-table-column prop="deadline" label="整改时限" width="120" align="center">
 					<template #default="scope">
 						{{ scope.row.deadline ? scope.row.deadline.split('T')[0] : '-' }}
 					</template>

@@ -138,8 +138,8 @@ class WorkOrder(CoreModel):
     # 上报时间（自动记录创建时间）
     report_time = models.DateTimeField(auto_now_add=True, verbose_name='上报时间', help_text='上报时间')
     
-    # 截止时间
-    deadline = models.DateField(null=True, blank=True, verbose_name='截止时间', help_text='截止时间')
+    # 整改时限
+    deadline = models.DateField(null=True, blank=True, verbose_name='整改时限', help_text='整改时限')
     
     # 工单状态
     STATUS_CHOICES = (

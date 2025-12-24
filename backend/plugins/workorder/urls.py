@@ -6,6 +6,7 @@ from plugins.workorder.views.workorder_photos import MobileWorkOrderPhotosView
 from plugins.workorder.views.workorder_rechecks import MobileWorkOrderRechecksView
 from plugins.workorder.views.workorder_submissions import MobileWorkOrderSubmissionsView, MobileWorkOrderSubmissionDeleteView
 from plugins.workorder.views.mobile_notifications import MobileNotificationsView, MobileNotificationReadView
+from plugins.workorder.views.mobile_statistics import MobileStatisticsView
 from plugins.workorder.views.supervision_push import SupervisionPushViewSet
 
 # 先定义自定义路由（更具体的路由）
@@ -20,6 +21,7 @@ urlpatterns = [
     path('mobile/workorders', MobileWorkOrderView.as_view(), name='mobile-workorders'),
     path('mobile/notifications', MobileNotificationsView.as_view(), name='mobile-notifications'),
     path('mobile/notifications/read', MobileNotificationReadView.as_view(), name='mobile-notifications-read'),
+    path('mobile/statistics', MobileStatisticsView.as_view(), name='mobile-statistics'),
 ]
 
 # 然后注册ViewSet路由

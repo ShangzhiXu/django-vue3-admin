@@ -169,7 +169,7 @@
 							<span class="info-value">{{ formatDateTime(workorderData.report_time) }}</span>
 						</div>
 						<div class="info-item">
-							<span class="info-label">截止时间：</span>
+							<span class="info-label">整改时限：</span>
 							<span class="info-value">{{ formatDate(workorderData.deadline) }}</span>
 						</div>
 						<div class="info-item" v-if="workorderData.remark">

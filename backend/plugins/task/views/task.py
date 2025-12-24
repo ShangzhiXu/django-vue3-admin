@@ -235,7 +235,7 @@ class TaskCreateSerializer(CustomModelSerializer):
             from django.utils import timezone
             from datetime import timedelta
             
-            # 计算截止时间：默认为任务结束时间，如果没有则设置为创建时间后7天
+            # 计算整改时限：默认为任务结束时间，如果没有则设置为创建时间后7天
             if task.end_time:
                 deadline = task.end_time.date()
             else:

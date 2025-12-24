@@ -74,3 +74,5 @@ class MobileWorkOrderPhotosView(APIView):
                 "msg": f"服务器错误: {str(e)}"
             }, status=500, content_type='application/json')
 
+
+

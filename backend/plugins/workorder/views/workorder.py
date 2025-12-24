@@ -28,6 +28,7 @@ class WorkOrderSerializer(CustomModelSerializer):
     merchant_name = serializers.SerializerMethodField(read_only=True)
     merchant_manager = serializers.SerializerMethodField(read_only=True)
     merchant_phone = serializers.SerializerMethodField(read_only=True)
+    merchant_gps = serializers.SerializerMethodField(read_only=True)
     check_category_display = serializers.SerializerMethodField(read_only=True)
     hazard_level_display = serializers.SerializerMethodField(read_only=True)
     status_display = serializers.SerializerMethodField(read_only=True)
@@ -35,6 +36,7 @@ class WorkOrderSerializer(CustomModelSerializer):
     inspector_name = serializers.SerializerMethodField(read_only=True)
     responsible_person_name = serializers.SerializerMethodField(read_only=True)
     transfer_person_name = serializers.SerializerMethodField(read_only=True)
+    transfer_person_phone = serializers.SerializerMethodField(read_only=True)
     transfer_remark = serializers.CharField(read_only=True)
     rectification_category_display = serializers.SerializerMethodField(read_only=True)
     
@@ -49,6 +51,10 @@ class WorkOrderSerializer(CustomModelSerializer):
     def get_merchant_phone(self, obj):
         """获取商户联系电话"""
         return obj.merchant.phone if obj.merchant else None
+    
+    def get_merchant_gps(self, obj):
+        """获取商户GPS信息"""
+        return obj.merchant.gps_status if obj.merchant and obj.merchant.gps_status else None
     
     def get_check_category_display(self, obj):
         """获取检查类别的中文显示值"""
@@ -83,6 +89,12 @@ class WorkOrderSerializer(CustomModelSerializer):
         if obj.transfer_person:
             return obj.transfer_person.name
         return None
+
+    def get_transfer_person_phone(self, obj):
+        """获取移交负责人手机号"""
+        if obj.transfer_person:
+            return obj.transfer_person.mobile
+        return None
     
     def get_rectification_category_display(self, obj):
         """获取整改类别的中文显示值"""
@@ -96,7 +108,7 @@ class WorkOrderSerializer(CustomModelSerializer):
     def to_representation(self, instance):
         """序列化时自动判断是否逾期"""
         data = super().to_representation(instance)
-        # 如果状态不是已逾期和已完成，且截止时间已过，自动标记为已逾期
+        # 如果状态不是已逾期和已完成，且整改时限已过，自动标记为已逾期
         if instance.status not in [2, 3] and instance.deadline and instance.deadline < date.today():
             instance.status = 3
             instance.save(update_fields=['status'])
@@ -326,7 +338,7 @@ class WorkOrderViewSet(CustomModelViewSet):
         "problem_description": "问题描述",
         "rectification_category": "整改类别",
         "report_time": "上报时间",
-        "deadline": "截止时间",
+        "deadline": "整改时限",
         "status": "状态",
         "completed_time": "完成时间",
         "task_name": "关联任务",
@@ -344,7 +356,7 @@ class WorkOrderViewSet(CustomModelViewSet):
         today = date.today()
         queryset.filter(
             Q(status__in=[0, 1]) &  # 待整改或待复查
-            Q(deadline__lt=today)  # 截止时间已过
+            Q(deadline__lt=today)  # 整改时限已过
         ).update(status=3)  # 更新为已逾期
         
         return queryset
