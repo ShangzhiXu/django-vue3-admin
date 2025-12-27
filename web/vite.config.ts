@@ -33,8 +33,21 @@ const viteConfig = defineConfig((mode: ConfigEnv) => {
 			host: '0.0.0.0',
 			port: env.VITE_PORT as unknown as number,
 			open: false,
-			hmr: true,
-			allowedHosts: ['tongyuinspection.cloud'],
+			// HMR 配置：当通过 HTTPS 域名访问时，需要配置 WebSocket
+			// 如果通过 nginx 代理访问，需要 nginx 配置 WebSocket 代理
+			hmr: env.VITE_HMR_DISABLE === 'true' ? false : {
+				// 当通过 HTTPS 域名访问时，使用 wss 协议
+				// 注意：这需要 nginx 配置 WebSocket 代理到 Vite 开发服务器
+				protocol: 'wss',
+				host: 'tongyuinspection.cloud',
+				port: 443,
+				clientPort: 443,
+			},
+			allowedHosts: [
+				'tongyuinspection.cloud',
+				'www.tongyuinspection.cloud',
+				'localhost',
+			],
 			proxy: {
 				'/api': {
 					target: env.VITE_API_BACKEND_URL || 'http://localhost:8000',
