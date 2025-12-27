@@ -1,8 +1,13 @@
 from datetime import date, datetime, timedelta
 from django.db.models import Q, F, ExpressionWrapper, DurationField
+from django.http import HttpResponse
 from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, Alignment
+from urllib.parse import quote
 
 from dvadmin.utils.serializers import CustomModelSerializer
 from dvadmin.utils.viewset import CustomModelViewSet
@@ -13,7 +18,7 @@ from dvadmin.system.utils.notifications import send_notification_to_user
 
 class SupervisionPushWorkOrderSerializer(CustomModelSerializer):
     """
-    督办推送工单列表-序列化器
+    督办中心工单列表-序列化器
     """
     merchant_name = serializers.SerializerMethodField(read_only=True)
     merchant_manager = serializers.SerializerMethodField(read_only=True)
@@ -132,7 +137,7 @@ class SupervisionPushWorkOrderSerializer(CustomModelSerializer):
 
 class SupervisionPushSerializer(CustomModelSerializer):
     """
-    督办推送记录-序列化器
+    督办中心记录-序列化器
     """
     workorder_count = serializers.SerializerMethodField(read_only=True)
     push_method_display = serializers.SerializerMethodField(read_only=True)
@@ -156,14 +161,116 @@ class SupervisionPushSerializer(CustomModelSerializer):
         read_only_fields = ["id", "push_time"]
 
 
+class SupervisionWorkOrderExportSerializer(CustomModelSerializer):
+    """
+    督办工单导出序列化器
+    """
+    merchant_name = serializers.SerializerMethodField(read_only=True)
+    hazard_level_display = serializers.SerializerMethodField(read_only=True)
+    inspector_name = serializers.SerializerMethodField(read_only=True)
+    responsible_person_name = serializers.SerializerMethodField(read_only=True)
+    transfer_person_name = serializers.SerializerMethodField(read_only=True)
+    status = serializers.SerializerMethodField(read_only=True)
+    overdue_duration_display = serializers.SerializerMethodField(read_only=True)
+    lag_level_label = serializers.SerializerMethodField(read_only=True)
+    
+    def get_merchant_name(self, obj):
+        """获取商户名称"""
+        return obj.merchant.name if obj.merchant else ""
+    
+    def get_hazard_level_display(self, obj):
+        """获取隐患等级的中文显示值"""
+        return obj.get_hazard_level_display() if obj.hazard_level else ""
+    
+    def get_inspector_name(self, obj):
+        """获取检查人名称"""
+        if obj.inspector:
+            return obj.inspector.name
+        return ""
+    
+    def get_responsible_person_name(self, obj):
+        """获取包保责任人名称"""
+        if obj.responsible_person:
+            return obj.responsible_person.name
+        return ""
+    
+    def get_transfer_person_name(self, obj):
+        """获取移交负责人名称"""
+        if obj.transfer_person:
+            return obj.transfer_person.name
+        return ""
+    
+    def get_status(self, obj):
+        """返回状态的中文显示值"""
+        return obj.get_status_display() if obj.status is not None else ""
+    
+    def get_overdue_duration_display(self, obj):
+        """获取逾期时长显示文本"""
+        from datetime import date, datetime
+        if obj.deadline:
+            today = date.today()
+            delta = today - obj.deadline
+            days = max(0, delta.days)
+            if days > 0:
+                return f"{days}天"
+        return "0小时"
+    
+    def get_lag_level_label(self, obj):
+        """获取滞后级别标签"""
+        from datetime import date
+        if obj.deadline:
+            today = date.today()
+            delta = today - obj.deadline
+            days = max(0, delta.days)
+            if days > 3:
+                return '严重滞后'
+            elif days > 1:
+                return '一般滞后'
+            elif days > 0:
+                return '轻微滞后'
+        return '正常'
+    
+    class Meta:
+        model = WorkOrder
+        fields = (
+            "workorder_no",
+            "merchant_name",
+            "problem_description",
+            "inspector_name",
+            "responsible_person_name",
+            "overdue_duration_display",
+            "lag_level_label",
+            "hazard_level_display",
+            "status",
+            "deadline",
+            "report_time",
+        )
+
+
 class SupervisionPushViewSet(CustomModelViewSet):
     """
-    督办推送接口
+    督办中心接口
     """
     queryset = SupervisionPush.objects.prefetch_related('workorders').all()
     serializer_class = SupervisionPushSerializer
     filter_fields = ['push_status', 'push_method']
     search_fields = ['title', 'regulatory_unit']
+    
+    # 督办工单列表导出配置
+    export_field_label = {
+        "workorder_no": "工单号",
+        "merchant_name": "商户名称",
+        "problem_description": "问题描述",
+        "inspector_name": "检查人",
+        "responsible_person_name": "包保责任人",
+        "overdue_duration_display": "逾期时长",
+        "lag_level_label": "滞后级别",
+        "hazard_level_display": "隐患等级",
+        "status": "状态",
+        "deadline": "整改时限",
+        "report_time": "上报时间",
+    }
+    export_serializer_class = SupervisionWorkOrderExportSerializer
     
     @action(methods=['get'], detail=False, url_path='workorder-list')
     def workorder_list(self, request):
@@ -175,9 +282,19 @@ class SupervisionPushViewSet(CustomModelViewSet):
         hazard_level = request.query_params.get('hazard_level', None)  # 隐患等级
         status = request.query_params.get('status', None)  # 工单状态
         
-        # 基础查询：查询已逾期或已被督办的工单（status=3或deadline已过或is_supervised=True）
-        queryset = WorkOrder.objects.filter(
-            Q(status=3) | Q(deadline__lt=date.today()) | Q(is_supervised=True)
+        # 先更新逾期状态：将deadline已过但状态为待整改或待复查的工单更新为已逾期
+        today = date.today()
+        WorkOrder.objects.filter(
+            Q(status__in=[0, 1]) &  # 待整改或待复查
+            Q(deadline__lt=today) &  # 整改时限已过
+            Q(deadline__isnull=False)  # deadline不为空
+        ).update(status=3)
+        
+        # 基础查询：查询已逾期或已被督办的工单（排除已完成的工单）
+        # 督办中心显示：status=3（已逾期）或 已被督办且未完成的工单
+        queryset = WorkOrder.objects.exclude(status=2).filter(
+            Q(status=3) |  # 已逾期状态（所有已逾期且未完成的工单）
+            Q(is_supervised=True)  # 已被督办且未完成的工单（因为已经exclude了status=2，所以这里只需要is_supervised=True）
         ).select_related('merchant', 'task', 'inspector', 'responsible_person', 'transfer_person').order_by('-deadline')
         
         # 按逾期时长筛选
@@ -206,11 +323,8 @@ class SupervisionPushViewSet(CustomModelViewSet):
             except (ValueError, TypeError):
                 pass
         
-        # 自动更新逾期状态
-        today = date.today()
-        queryset.filter(
-            Q(status__in=[0, 1]) & Q(deadline__lt=today)
-        ).update(status=3)
+        # 自动更新逾期状态（在查询之前更新，避免重复）
+        # 这部分已经在get_queryset中处理了，这里不需要重复处理
         
         # 分页
         page = int(request.query_params.get('page', 1))
@@ -366,4 +480,90 @@ class SupervisionPushViewSet(CustomModelViewSet):
             },
             msg="获取成功"
         )
+    
+    @action(methods=['get'], detail=False, url_path='workorder-export')
+    def workorder_export(self, request):
+        """
+        导出督办工单列表
+        """
+        import datetime as dt
+        
+        # 获取筛选参数（与 workorder_list 保持一致）
+        overdue_hours = request.query_params.get('overdue_hours', None)
+        hazard_level = request.query_params.get('hazard_level', None)
+        status = request.query_params.get('status', None)
+        
+        # 先更新逾期状态
+        today = date.today()
+        WorkOrder.objects.filter(
+            Q(status__in=[0, 1]) &
+            Q(deadline__lt=today) &
+            Q(deadline__isnull=False)
+        ).update(status=3)
+        
+        # 基础查询
+        queryset = WorkOrder.objects.exclude(status=2).filter(
+            Q(status=3) | Q(is_supervised=True)
+        ).select_related('merchant', 'inspector', 'responsible_person', 'transfer_person').order_by('-deadline')
+        
+        # 应用筛选
+        if overdue_hours:
+            try:
+                hours = int(overdue_hours)
+                cutoff_datetime = datetime.now() - timedelta(hours=hours)
+                cutoff_date = cutoff_datetime.date()
+                queryset = queryset.filter(deadline__lte=cutoff_date)
+            except (ValueError, TypeError):
+                pass
+        
+        if hazard_level:
+            queryset = queryset.filter(hazard_level=hazard_level)
+        
+        if status is not None:
+            try:
+                status_int = int(status)
+                queryset = queryset.filter(status=status_int)
+            except (ValueError, TypeError):
+                pass
+        
+        # 序列化数据
+        serializer = SupervisionWorkOrderExportSerializer(queryset, many=True)
+        data = serializer.data
+        
+        # 生成Excel
+        wb = Workbook()
+        ws = wb.active
+        
+        # 表头
+        headers = ["序号"] + list(self.export_field_label.values())
+        ws.append(headers)
+        
+        # 设置表头样式
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        
+        # 数据行
+        for idx, row_data in enumerate(data, 1):
+            row = [idx] + [row_data.get(key, '') for key in self.export_field_label.keys()]
+            ws.append(row)
+        
+        # 调整列宽
+        for col_idx in range(1, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(col_idx)].width = 20
+        
+        # 生成文件名
+        timestamp = dt.datetime.now().strftime('%Y%m%d%H%M%S')
+        filename = f"督办工单导出-{timestamp}.xlsx"
+        
+        # 创建响应
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Access-Control-Expose-Headers"] = "Content-Disposition"
+        response["content-disposition"] = f'attachment;filename={quote(filename)}'
+        
+        wb.save(response)
+        return response
 

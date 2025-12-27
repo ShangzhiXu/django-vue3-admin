@@ -77,10 +77,27 @@ const onTabClick = (tab: any) => {
 const handleBatchExport = async () => {
 	try {
 		// 获取当前的查询参数，用于导出筛选后的数据
-		let query = {};
+		let query: any = {};
 		if (crudExpose && typeof crudExpose.getSearchFormData === 'function') {
 			query = crudExpose.getSearchFormData();
 		}
+		
+		// 根据当前选中的标签添加状态筛选
+		const statusMap: any = {
+			all: undefined, // 全部，不筛选
+			pending: 0, // 待整改
+			review: 1, // 待复查
+			overdue: 3, // 已逾期
+			completed: 2, // 已完成
+		};
+		const statusValue = statusMap[statusTab.value];
+		if (statusValue !== undefined) {
+			query.status = statusValue;
+		} else {
+			// 全部时，确保不传status参数
+			delete query.status;
+		}
+		
 		await downloadFile({
 			url: '/api/workorder/export_data/',
 			method: 'get',

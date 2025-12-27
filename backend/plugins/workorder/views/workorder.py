@@ -153,6 +153,13 @@ class WorkOrderCreateSerializer(CustomModelSerializer):
             if isinstance(task, Task) and task.manager:
                 validated_data['inspector'] = task.manager
         
+        # 如果未设置包保责任人，且有关联商户，则从商户继承
+        if not validated_data.get('responsible_person') and validated_data.get('merchant'):
+            from plugins.merchant.models import Merchant
+            merchant = validated_data['merchant']
+            if isinstance(merchant, Merchant) and merchant.responsible_person:
+                validated_data['responsible_person'] = merchant.responsible_person
+        
         # 创建工单
         workorder = super().create(validated_data)
 
@@ -237,6 +244,8 @@ class WorkOrderExportSerializer(CustomModelSerializer):
     completed_time = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", required=False, read_only=True)
     create_datetime = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", required=False, read_only=True)
     update_datetime = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", required=False, read_only=True)
+    # 进度信息（合并所有进度记录）
+    progress_info = serializers.SerializerMethodField(read_only=True)
     
     def get_merchant_name(self, obj):
         """返回商户名称"""
@@ -280,6 +289,35 @@ class WorkOrderExportSerializer(CustomModelSerializer):
         """返回整改类别的中文显示值"""
         return obj.get_rectification_category_display() if obj.rectification_category else ""
     
+    def get_progress_info(self, obj):
+        """返回进度信息（所有提交记录的合并文本）"""
+        from plugins.workorder.models import WorkOrderSubmission
+        submissions = WorkOrderSubmission.objects.filter(workorder=obj).order_by('submit_time')
+        
+        progress_list = []
+        for sub in submissions:
+            # 判断类型
+            if sub.is_recheck == 1:
+                type_text = "复查"
+            else:
+                type_text = "首次提交"
+            
+            # 判断是否合格
+            qualified_text = "合格" if sub.is_qualified == 1 else "不合格"
+            
+            # 提交人
+            submitter_name = sub.submitter.name if sub.submitter else "未知"
+            
+            # 构建进度文本
+            progress_text = f"{sub.submit_time.strftime('%Y-%m-%d %H:%M:%S')} | {type_text} | {qualified_text} | 提交人：{submitter_name}"
+            if sub.remark:
+                progress_text += f" | 备注：{sub.remark}"
+            
+            progress_list.append(progress_text)
+        
+        # 用换行符连接所有进度
+        return "\n".join(progress_list) if progress_list else ""
+    
     class Meta:
         model = WorkOrder
         fields = (
@@ -301,6 +339,7 @@ class WorkOrderExportSerializer(CustomModelSerializer):
             "completed_time",
             "task_name",
             "remark",
+            "progress_info",
             "create_datetime",
             "update_datetime",
         )
@@ -343,6 +382,7 @@ class WorkOrderViewSet(CustomModelViewSet):
         "completed_time": "完成时间",
         "task_name": "关联任务",
         "remark": "备注",
+        "progress_info": "进度记录",
         "create_datetime": "创建时间",
         "update_datetime": "更新时间",
     }
@@ -416,6 +456,64 @@ class WorkOrderViewSet(CustomModelViewSet):
 
         return DetailResponse(msg="移交成功", data={"id": workorder.id})
     
+    @action(methods=['get'], detail=False, url_path='transfer-export')
+    def transfer_export(self, request):
+        """
+        导出已移交工单列表
+        """
+        from django.http import HttpResponse
+        from openpyxl import Workbook
+        from openpyxl.utils import get_column_letter
+        from openpyxl.styles import Font, Alignment
+        from urllib.parse import quote
+        import datetime as dt
+        
+        # 只查询已移交的工单
+        queryset = self.filter_queryset(
+            self.get_queryset().filter(is_transferred=True)
+        ).select_related('merchant', 'inspector', 'responsible_person', 'transfer_person', 'task')
+        
+        # 序列化数据
+        serializer = self.export_serializer_class(queryset, many=True)
+        data = serializer.data
+        
+        # 生成Excel
+        wb = Workbook()
+        ws = wb.active
+        
+        # 表头
+        headers = ["序号"] + list(self.export_field_label.values())
+        ws.append(headers)
+        
+        # 设置表头样式
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        
+        # 数据行
+        for idx, row_data in enumerate(data, 1):
+            row = [idx] + [row_data.get(key, '') for key in self.export_field_label.keys()]
+            ws.append(row)
+        
+        # 调整列宽
+        for col_idx in range(1, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(col_idx)].width = 20
+        
+        # 生成文件名
+        timestamp = dt.datetime.now().strftime('%Y%m%d%H%M%S')
+        filename = f"移交工单导出-{timestamp}.xlsx"
+        
+        # 创建响应
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Access-Control-Expose-Headers"] = "Content-Disposition"
+        response["content-disposition"] = f'attachment;filename={quote(filename)}'
+        
+        wb.save(response)
+        return response
+    
     @action(methods=['post'], detail=False)
     def batch_supervise(self, request):
         """
@@ -425,12 +523,40 @@ class WorkOrderViewSet(CustomModelViewSet):
         if not workorder_ids:
             return DetailResponse(msg="请选择要督办的工单", code=400)
         
+        # 先获取工单（用于发送通知）
+        workorders = WorkOrder.objects.filter(id__in=workorder_ids).select_related('responsible_person', 'merchant')
+        
+        # 更新状态
         count = WorkOrder.objects.filter(id__in=workorder_ids).update(
             status=0,  # 设置为待整改状态
             is_supervised=True  # 标记为已督办
         )
         
-        return DetailResponse(data={'count': count}, msg=f"已对 {count} 个工单执行批量督办")
+        # 只给包保责任人发送通知
+        notification_count = 0
+        for workorder in workorders:
+            if getattr(workorder, 'responsible_person', None):
+                merchant_name = workorder.merchant.name if workorder.merchant else '未知'
+                overdue_days = (date.today() - workorder.deadline).days if workorder.deadline and workorder.deadline < date.today() else 0
+                
+                title = f"督办通知：{workorder.workorder_no}"
+                content = f"工单\"{workorder.workorder_no}\"已被督办，请关注整改情况。\n商户：{merchant_name}"
+                if overdue_days > 0:
+                    content += f"\n逾期：{overdue_days}天"
+                
+                send_notification_to_user(
+                    user=workorder.responsible_person,
+                    title=title,
+                    content=content,
+                    request=request,
+                    target_type=0,
+                )
+                notification_count += 1
+        
+        return DetailResponse(
+            data={'count': count, 'notification_count': notification_count}, 
+            msg=f"已对 {count} 个工单执行批量督办，已发送 {notification_count} 条通知"
+        )
     
     @action(methods=['post'], detail=True)
     def supervise(self, request, pk=None):
@@ -441,6 +567,24 @@ class WorkOrderViewSet(CustomModelViewSet):
         workorder.status = 0  # 设置为待整改状态
         workorder.is_supervised = True  # 标记为已督办
         workorder.save(update_fields=['status', 'is_supervised'])
+        
+        # 只给包保责任人发送通知
+        if getattr(workorder, 'responsible_person', None):
+            merchant_name = workorder.merchant.name if workorder.merchant else '未知'
+            overdue_days = (date.today() - workorder.deadline).days if workorder.deadline and workorder.deadline < date.today() else 0
+            
+            title = f"督办通知：{workorder.workorder_no}"
+            content = f"工单\"{workorder.workorder_no}\"已被督办，请关注整改情况。\n商户：{merchant_name}"
+            if overdue_days > 0:
+                content += f"\n逾期：{overdue_days}天"
+            
+            send_notification_to_user(
+                user=workorder.responsible_person,
+                title=title,
+                content=content,
+                request=request,
+                target_type=0,
+            )
         
         return DetailResponse(msg=f"已对工单 {workorder.workorder_no} 执行督办")
     
@@ -460,6 +604,60 @@ class WorkOrderViewSet(CustomModelViewSet):
         workorder.save(update_fields=['status', 'completed_time'])
         
         return DetailResponse(msg=f"工单 {workorder.workorder_no} 已完成")
+    
+    @action(methods=['get'], detail=False, url_path='transferred-list')
+    def transferred_list(self, request):
+        """
+        获取已移交工单列表（支持筛选）
+        """
+        from plugins.workorder.views.supervision_push import SupervisionPushWorkOrderSerializer
+        
+        # 获取筛选参数
+        hazard_level = request.query_params.get('hazard_level', None)  # 隐患等级
+        status = request.query_params.get('status', None)  # 工单状态
+        
+        # 基础查询：查询已移交的工单
+        queryset = WorkOrder.objects.filter(
+            is_transferred=True
+        ).select_related('merchant', 'task', 'inspector', 'responsible_person', 'transfer_person').order_by('-update_datetime')
+        
+        # 按隐患等级筛选
+        if hazard_level:
+            queryset = queryset.filter(hazard_level=hazard_level)
+        
+        # 按状态筛选
+        if status is not None:
+            try:
+                status_int = int(status)
+                queryset = queryset.filter(status=status_int)
+            except (ValueError, TypeError):
+                pass
+        
+        # 自动更新逾期状态
+        today = date.today()
+        queryset.filter(
+            Q(status__in=[0, 1]) & Q(deadline__lt=today)
+        ).update(status=3)
+        
+        # 分页
+        page = int(request.query_params.get('page', 1))
+        limit = int(request.query_params.get('limit', 10))
+        offset = (page - 1) * limit
+        
+        total = queryset.count()
+        workorders = queryset[offset:offset + limit]
+        
+        serializer = SupervisionPushWorkOrderSerializer(workorders, many=True)
+        
+        return DetailResponse(
+            data={
+                'list': serializer.data,
+                'total': total,
+                'page': page,
+                'limit': limit
+            },
+            msg="获取成功"
+        )
 
 
 class MobileWorkOrderView(APIView):

@@ -400,7 +400,8 @@ class UserViewSet(CustomModelViewSet):
         if not dept_id:
             dept_id = ''
         if not show_all:
-            show_all = 0
+            # 当选择了部门时，默认包含下级部门的人员
+            show_all = 1 if dept_id else 0
         if int(show_all):
             all_did = [dept_id]
             def inner(did):

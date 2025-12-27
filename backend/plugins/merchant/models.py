@@ -14,6 +14,18 @@ class Merchant(CoreModel):
     phone = models.CharField(max_length=20, null=True, blank=True, verbose_name='联系电话', help_text='联系电话')
     address = models.TextField(null=True, blank=True, verbose_name='地址', help_text='地址')
     
+    # 包保责任人（关联用户表）
+    responsible_person = models.ForeignKey(
+        'system.Users',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='responsible_merchants',
+        db_constraint=False,
+        verbose_name='包保责任人',
+        help_text='包保责任人，会继承到该商户的工单中'
+    )
+    
     # GPS 状态改为可存任意字符串，例如经纬度 "-37,145"
     gps_status = models.CharField(max_length=64, null=True, blank=True, verbose_name='GPS', help_text='GPS 信息，如经纬度字符串')
 

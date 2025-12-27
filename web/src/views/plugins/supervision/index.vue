@@ -1,15 +1,14 @@
 <template>
-	<div class="supervision-push-container">
-		<!-- 页面头部 -->
-		<div class="page-header">
-			<div class="header-title">
-				<h2>督办推送中心</h2>
-				<p class="subtitle">统一筛选严重逾期工单,向监管单位发送正式督办通知</p>
-			</div>
-		</div>
+	<div class="supervision-container">
+		<el-card class="box-card">
+			<template #header>
+				<div class="card-header">
+					<span class="title">督办中心</span>
+					<span class="subtitle">统一筛选严重逾期工单，向监管单位发送正式督办通知</span>
+				</div>
+			</template>
 
-		<!-- 筛选区域 -->
-		<div class="filter-section">
+			<!-- 筛选区域 -->
 			<el-form :inline="true" :model="filterForm" class="filter-form">
 				<el-form-item label="逾期时长">
 					<el-select v-model="filterForm.overdue_hours" placeholder="全部" style="width: 200px" clearable>
@@ -20,8 +19,8 @@
 						<el-option label="超过7天" value="168" />
 					</el-select>
 				</el-form-item>
-				<el-form-item label="问题类型">
-					<el-select v-model="filterForm.hazard_level" placeholder="请选择" style="width: 200px">
+				<el-form-item label="隐患等级">
+					<el-select v-model="filterForm.hazard_level" placeholder="请选择" style="width: 200px" clearable>
 						<el-option label="全部" value="" />
 						<el-option label="高" value="high" />
 						<el-option label="中" value="medium" />
@@ -29,88 +28,74 @@
 					</el-select>
 				</el-form-item>
 				<el-form-item>
-					<el-button type="primary" @click="handleFilter">筛选待督办工单</el-button>
+					<el-button type="primary" @click="handleFilter">筛选</el-button>
+					<el-button @click="handleReset">重置</el-button>
+					<el-button type="success" @click="handleExport">导出</el-button>
 				</el-form-item>
 			</el-form>
-			<div class="push-button-wrapper">
-				<el-button
-					type="primary"
-					:disabled="selectedWorkorders.length === 0"
-					@click="handleBatchPush"
-					style="margin-bottom: 10px"
-				>
-					<el-icon style="margin-right: 4px"><Promotion /></el-icon>
-					一键推送选中项 ({{ selectedWorkorders.length }})
+
+			<!-- 批量操作 -->
+			<div class="batch-actions" v-if="selectedWorkorders.length > 0">
+				<el-button type="primary" @click="handleBatchPush" :loading="pushLoading">
+					<el-icon><Promotion /></el-icon>
+					批量推送 ({{ selectedWorkorders.length }})
 				</el-button>
 			</div>
-		</div>
 
-		<!-- 工单列表 -->
-		<div class="workorder-list" v-loading="loading">
-			<div
-				v-for="workorder in workorderList"
-				:key="workorder.id"
-				class="workorder-card"
-				:class="{ selected: isSelected(workorder.id) }"
-			>
-				<div class="card-left">
-					<el-checkbox
-						:model-value="isSelected(workorder.id)"
-						@change="(val: boolean) => handleSelectChange(workorder.id, val)"
-						class="workorder-checkbox"
-					/>
-					<div class="workorder-info">
-						<div class="workorder-title">
-							{{ workorder.merchant_name }} - {{ workorder.problem_description || '无问题描述' }}
-						</div>
-						<div class="workorder-details">
-							工单号:{{ workorder.workorder_no }} | 检查人:{{ workorder.inspector_name || '未设置' }} | 包保责任人:{{ workorder.responsible_person_name || '未设置' }} | 移交负责人:{{ workorder.transfer_person_name || '未移交' }}
-							{{ workorder.merchant_phone ? `(${workorder.merchant_phone})` : '' }}
-						</div>
-						<div class="workorder-status">
-							<span class="overdue-text" :class="'overdue-' + workorder.lag_level.type">
-								已逾期:{{ workorder.overdue_duration_display }}
+			<!-- 工单列表 -->
+			<div class="workorder-table" v-loading="loading">
+				<el-table :data="workorderList" style="width: 100%" @selection-change="handleSelectionChange">
+					<el-table-column type="selection" width="55" />
+					<el-table-column prop="workorder_no" label="工单号" width="150" />
+					<el-table-column prop="merchant_name" label="商户名称" min-width="150" />
+					<el-table-column prop="problem_description" label="问题描述" min-width="200" show-overflow-tooltip />
+					<el-table-column prop="inspector_name" label="检查人" width="100" />
+					<el-table-column prop="responsible_person_name" label="包保责任人" width="120" />
+					<el-table-column label="逾期时长" width="120">
+						<template #default="scope">
+							<span :style="{ color: getOverdueColor(scope.row) }">
+								{{ scope.row.overdue_duration_display || '-' }}
 							</span>
-						</div>
-						<div class="workorder-feedback">
-							最后反馈:{{ workorder.last_feedback }}
-						</div>
-					</div>
-				</div>
-				<div class="card-right">
-					<el-tag
-						:type="workorder.lag_level.type === 'danger' ? 'danger' : workorder.lag_level.type === 'warning' ? 'warning' : 'info'"
-						size="large"
-						style="margin-bottom: 10px"
-					>
-						{{ workorder.lag_level.label }}
-					</el-tag>
-						<el-tag v-if="workorder.is_transferred" type="success" size="small">已移交</el-tag>
-					<br />
-					<div class="card-actions">
-						<el-button type="primary" link @click="handleViewDetail(workorder.id)">查看详情</el-button>
-						<el-button type="warning" link @click="openTransferDialog(workorder)">移交</el-button>
-					</div>
-				</div>
-			</div>
+						</template>
+					</el-table-column>
+					<el-table-column label="滞后级别" width="100">
+						<template #default="scope">
+							<el-tag :type="getLagLevelType(scope.row)" size="small">
+								{{ scope.row.lag_level?.label || '-' }}
+							</el-tag>
+						</template>
+					</el-table-column>
+					<el-table-column prop="last_feedback" label="最后反馈" min-width="150" show-overflow-tooltip />
+					<el-table-column label="操作" width="150" fixed="right">
+						<template #default="scope">
+							<el-button type="primary" link size="small" @click="handleViewDetail(scope.row.id)">
+								查看详情
+							</el-button>
+							<el-button type="warning" link size="small" @click="handleTransfer(scope.row)">
+								移交
+							</el-button>
+						</template>
+					</el-table-column>
+				</el-table>
 
-			<!-- 空状态 -->
-			<el-empty v-if="!loading && workorderList.length === 0" description="暂无待督办工单" />
+				<!-- 分页 -->
+				<div class="pagination-wrapper" v-if="pagination.total > 0">
+					<el-pagination
+						v-model:current-page="pagination.page"
+						v-model:page-size="pagination.limit"
+						:total="pagination.total"
+						:page-sizes="[10, 20, 50, 100]"
+						layout="total, sizes, prev, pager, next, jumper"
+						@size-change="loadWorkorders"
+						@current-change="loadWorkorders"
+					/>
+				</div>
 
-			<!-- 分页 -->
-			<div class="pagination-wrapper" v-if="workorderList.length > 0">
-				<el-pagination
-					v-model:current-page="pagination.page"
-					v-model:page-size="pagination.limit"
-					:total="pagination.total"
-					:page-sizes="[10, 20, 50, 100]"
-					layout="total, sizes, prev, pager, next, jumper"
-					@size-change="loadWorkorders"
-					@current-change="loadWorkorders"
-				/>
+				<!-- 空状态 -->
+				<el-empty v-if="!loading && workorderList.length === 0" description="暂无待督办工单" />
 			</div>
-		</div>
-		
+		</el-card>
+
 		<!-- 工单详情抽屉 -->
 		<el-drawer
 			v-model="detailDrawerVisible"
@@ -128,24 +113,13 @@
 
 		<!-- 移交弹窗 -->
 		<el-dialog v-model="transferDialogVisible" title="工单移交" width="500px" :close-on-click-modal="false">
-			<el-form label-width="100px">
+			<el-form :model="transferForm" label-width="100px">
 				<el-form-item label="移交负责人" required>
-					<el-select
+					<table-selector
 						v-model="transferForm.transfer_person"
+						:table-config="transferPersonTableConfig"
 						placeholder="请选择移交负责人"
-						filterable
-						remote
-						:remote-method="loadTransferUsers"
-						:loading="transferLoading"
-						style="width: 100%"
-					>
-						<el-option
-							v-for="user in transferUserOptions"
-							:key="user.id"
-							:label="user.name || user.username"
-							:value="user.id"
-						/>
-					</el-select>
+					/>
 				</el-form-item>
 				<el-form-item label="备注">
 					<el-input
@@ -169,36 +143,53 @@
 </template>
 
 <script lang="ts" setup name="supervision">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, shallowRef } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Promotion } from '@element-plus/icons-vue';
 import * as api from './api';
 import workorderDetail from '../workorder/detail.vue';
-import { request } from '/@/utils/service';
+import { request, downloadFile } from '/@/utils/service';
+import tableSelector from '/@/components/tableSelector/index.vue';
 
+// 响应式数据
+const loading = ref(false);
+const pushLoading = ref(false);
 const detailDrawerVisible = ref(false);
 const currentWorkorderId = ref<number | string | null>(null);
+const transferDialogVisible = ref(false);
+const transferLoading = ref(false);
 
 // 筛选表单
 const filterForm = reactive({
-	overdue_hours: '', // 默认全部
-	hazard_level: '', // 全部
+	overdue_hours: '',
+	hazard_level: '',
 });
 
 // 工单列表
 const workorderList = ref<any[]>([]);
-const loading = ref(false);
 const selectedWorkorders = ref<number[]>([]);
 
-// 移交弹窗
-const transferDialogVisible = ref(false);
-const transferLoading = ref(false);
+// 移交表单
 const transferForm = reactive({
 	workorderId: null as number | null,
 	transfer_person: null as number | null,
 	transfer_remark: '',
 });
-const transferUserOptions = ref<any[]>([]);
+
+// 移交负责人选择的 tableConfig
+const transferPersonTableConfig = {
+	url: '/api/system/user/',
+	label: 'name',
+	value: 'id',
+	columns: [
+		{ prop: 'name', label: '姓名', width: 120 },
+		{ prop: 'username', label: '账号', width: 120 },
+		{ prop: 'mobile', label: '电话', width: 150 },
+	],
+	isMultiple: false,
+	pagination: true,
+	extraParams: {} as any,
+};
 
 // 分页
 const pagination = reactive({
@@ -223,12 +214,14 @@ const loadWorkorders = async () => {
 		}
 		const res = await api.GetWorkOrderList(params);
 		if (res.code === 2000) {
-			workorderList.value = res.data.list || [];
-			pagination.total = res.data.total || 0;
+			workorderList.value = res.data?.list || res.data?.results || [];
+			pagination.total = res.data?.total || 0;
+		} else {
+			ElMessage.error(res.msg || res.message || '加载工单列表失败');
 		}
-	} catch (error) {
-		ElMessage.error('加载工单列表失败');
-		console.error(error);
+	} catch (error: any) {
+		console.error('督办中心加载错误:', error);
+		ElMessage.error(error?.message || '加载工单列表失败');
 	} finally {
 		loading.value = false;
 	}
@@ -241,22 +234,16 @@ const handleFilter = () => {
 	loadWorkorders();
 };
 
-// 选择工单
-const isSelected = (id: number) => {
-	return selectedWorkorders.value.includes(id);
+// 重置
+const handleReset = () => {
+	filterForm.overdue_hours = '';
+	filterForm.hazard_level = '';
+	handleFilter();
 };
 
-const handleSelectChange = (id: number, checked: boolean) => {
-	if (checked) {
-		if (!selectedWorkorders.value.includes(id)) {
-			selectedWorkorders.value.push(id);
-		}
-	} else {
-		const index = selectedWorkorders.value.indexOf(id);
-		if (index > -1) {
-			selectedWorkorders.value.splice(index, 1);
-		}
-	}
+// 选择变化
+const handleSelectionChange = (selection: any[]) => {
+	selectedWorkorders.value = selection.map((item: any) => item.id);
 };
 
 // 批量推送
@@ -277,9 +264,10 @@ const handleBatchPush = async () => {
 			}
 		);
 
+		pushLoading.value = true;
 		const res = await api.BatchPush({
 			workorder_ids: selectedWorkorders.value,
-			regulatory_unit: '监管单位', // 暂时写死，后续可以从配置或选择器获取
+			regulatory_unit: '监管单位',
 			push_method: 'system',
 		});
 
@@ -295,45 +283,23 @@ const handleBatchPush = async () => {
 			ElMessage.error('推送失败');
 			console.error(error);
 		}
+	} finally {
+		pushLoading.value = false;
 	}
 };
 
 // 查看详情
 const handleViewDetail = (id: number) => {
-	// 打开工单详情抽屉
 	currentWorkorderId.value = id;
 	detailDrawerVisible.value = true;
 };
 
-// 打开移交弹窗
-const openTransferDialog = (workorder: any) => {
+// 移交
+const handleTransfer = (workorder: any) => {
 	transferForm.workorderId = workorder.id;
 	transferForm.transfer_person = workorder.transfer_person || null;
-	transferForm.transfer_remark = workorder.transfer_remark || '';
+	transferForm.transfer_remark = '';
 	transferDialogVisible.value = true;
-	loadTransferUsers();
-};
-
-// 加载可选移交负责人
-const loadTransferUsers = async (keyword: string = '') => {
-	try {
-		const res: any = await request({
-			url: '/api/system/user/',
-			method: 'get',
-			params: {
-				page: 1,
-				limit: 50,
-				search: keyword || undefined,
-			},
-		});
-		if (res && res.data && res.data.results) {
-			transferUserOptions.value = res.data.results;
-		} else if (res && res.data && Array.isArray(res.data)) {
-			transferUserOptions.value = res.data;
-		}
-	} catch (error) {
-		// 忽略加载错误，保持已有列表
-	}
 };
 
 // 确认移交
@@ -364,156 +330,88 @@ const submitTransfer = async () => {
 	}
 };
 
+// 获取逾期颜色
+const getOverdueColor = (row: any) => {
+	if (row.lag_level?.type === 'danger') return '#f56c6c';
+	if (row.lag_level?.type === 'warning') return '#e6a23c';
+	return '#909399';
+};
+
+// 获取滞后级别类型
+const getLagLevelType = (row: any) => {
+	if (row.lag_level?.type === 'danger') return 'danger';
+	if (row.lag_level?.type === 'warning') return 'warning';
+	return 'info';
+};
+
+// 导出督办工单
+const handleExport = async () => {
+	try {
+		const params: any = {};
+		if (filterForm.overdue_hours) {
+			params.overdue_hours = filterForm.overdue_hours;
+		}
+		if (filterForm.hazard_level) {
+			params.hazard_level = filterForm.hazard_level;
+		}
+		await downloadFile({
+			url: '/api/supervision/workorder-export/',
+			method: 'get',
+			params: params,
+		});
+		ElMessage.success('导出成功');
+	} catch (error) {
+		ElMessage.error('导出失败');
+		console.error(error);
+	}
+};
+
 // 页面加载时获取数据
 onMounted(() => {
+	console.log('[督办中心] 页面已加载');
 	loadWorkorders();
 });
 </script>
 
 <style scoped lang="scss">
-.supervision-push-container {
+.supervision-container {
 	padding: 20px;
 	background: #f5f5f5;
 	min-height: calc(100vh - 60px);
-}
 
-.page-header {
-	margin-bottom: 20px;
-	background: white;
-	padding: 20px;
-	border-radius: 4px;
+	.box-card {
+		.card-header {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
 
-	.header-title {
-		h2 {
-			margin: 0 0 8px 0;
-			font-size: 20px;
-			font-weight: 500;
-			color: #303133;
-		}
-
-		.subtitle {
-			margin: 0;
-			font-size: 14px;
-			color: #909399;
-		}
-	}
-}
-
-.filter-section {
-	background: white;
-	padding: 20px;
-	border-radius: 4px;
-	margin-bottom: 20px;
-
-	.filter-form {
-		margin-bottom: 10px;
-	}
-
-	.push-button-wrapper {
-		text-align: right;
-	}
-}
-
-.workorder-list {
-	background: white;
-	padding: 20px;
-	border-radius: 4px;
-}
-
-.workorder-card {
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-start;
-	padding: 20px;
-	margin-bottom: 16px;
-	border: 1px solid #e4e7ed;
-	border-radius: 4px;
-	background: #fff;
-	transition: all 0.3s;
-
-	&:hover {
-		box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-	}
-
-	&.selected {
-		border-color: #409eff;
-		background: #ecf5ff;
-	}
-
-	.card-left {
-		display: flex;
-		flex: 1;
-		align-items: flex-start;
-
-		.workorder-checkbox {
-			margin-right: 12px;
-			margin-top: 4px;
-		}
-
-		.workorder-info {
-			flex: 1;
-
-			.workorder-title {
-				font-size: 16px;
+			.title {
+				font-size: 20px;
 				font-weight: 500;
 				color: #303133;
-				margin-bottom: 8px;
 			}
 
-			.workorder-details {
-				font-size: 14px;
-				color: #606266;
-				margin-bottom: 8px;
-			}
-
-			.workorder-status {
-				margin-bottom: 8px;
-
-				.overdue-text {
-					font-size: 14px;
-					font-weight: 500;
-
-					&.overdue-danger {
-						color: #f56c6c;
-					}
-
-					&.overdue-warning {
-						color: #e6a23c;
-					}
-
-					&.overdue-info {
-						color: #909399;
-					}
-				}
-			}
-
-			.workorder-feedback {
+			.subtitle {
 				font-size: 14px;
 				color: #909399;
 			}
 		}
-	}
 
-	.card-right {
-		text-align: right;
-		min-width: 120px;
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 6px;
+		.filter-form {
+			margin-bottom: 20px;
+		}
 
-		.card-actions {
-			display: flex;
-			flex-direction: column;
-			gap: 4px;
-			align-items: flex-end;
+		.batch-actions {
+			margin-bottom: 20px;
+			text-align: right;
+		}
+
+		.workorder-table {
+			.pagination-wrapper {
+				margin-top: 20px;
+				text-align: right;
+			}
 		}
 	}
 }
-
-.pagination-wrapper {
-	margin-top: 20px;
-	text-align: right;
-}
 </style>
-

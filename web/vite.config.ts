@@ -25,7 +25,8 @@ const viteConfig = defineConfig((mode: ConfigEnv) => {
 		plugins: [vue(), vueJsx(), vueSetupExtend()],
 		root: process.cwd(),
 		resolve: { alias },
-		base: mode.command === 'serve' ? './' : env.VITE_PUBLIC_PATH,
+		// 开发模式使用绝对路径，确保通过 nginx 代理时路径正确
+		base: mode.command === 'serve' ? '/' : env.VITE_PUBLIC_PATH,
 		optimizeDeps: {
 			include: ['element-plus/es/locale/lang/zh-cn', 'element-plus/es/locale/lang/en', 'element-plus/es/locale/lang/zh-tw'],
 		},
@@ -35,18 +36,17 @@ const viteConfig = defineConfig((mode: ConfigEnv) => {
 			open: false,
 			// HMR 配置：当通过 HTTPS 域名访问时，需要配置 WebSocket
 			// 如果通过 nginx 代理访问，需要 nginx 配置 WebSocket 代理
-			hmr: env.VITE_HMR_DISABLE === 'true' ? false : {
+			hmr: env.VITE_HMR_DISABLE === 'true' ? false : (env.VITE_HMR_HOST && env.VITE_HMR_CLIENT_PORT ? {
 				// 当通过 HTTPS 域名访问时，使用 wss 协议
 				// 注意：这需要 nginx 配置 WebSocket 代理到 Vite 开发服务器
-				protocol: 'wss',
-				host: 'tongyuinspection.cloud',
-				port: 443,
-				clientPort: 443,
-			},
+				// clientPort 指定客户端连接的端口，服务器仍然监听在 server.port
+				protocol: env.VITE_HMR_PROTOCOL || 'wss',
+				host: env.VITE_HMR_HOST,
+				clientPort: parseInt(env.VITE_HMR_CLIENT_PORT),
+			} : true), // 使用默认 HMR 配置
 			allowedHosts: [
-				'tongyuinspection.cloud',
-				'www.tongyuinspection.cloud',
 				'localhost',
+				'101.42.41.173',
 			],
 			proxy: {
 				'/api': {

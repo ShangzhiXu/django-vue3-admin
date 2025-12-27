@@ -2,7 +2,7 @@
   {
     "name": "部门管理",
     "icon": "ele-OfficeBuilding",
-    "sort": 0,
+    "sort": 7,
     "is_link": false,
     "is_catalog": false,
     "web_path": "/dept",
@@ -74,7 +74,7 @@
   {
     "name": "人员管理",
     "icon": "iconfont icon-icon-",
-    "sort": 1,
+    "sort": 8,
     "is_link": false,
     "is_catalog": false,
     "web_path": "/user",
@@ -228,7 +228,7 @@
   {
     "name": "系统管理",
     "icon": "iconfont icon-xitongshezhi",
-    "sort": 2,
+    "sort": 9,
     "is_link": false,
     "is_catalog": true,
     "web_path": "/system",

@@ -255,9 +255,7 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 						},
 					},
 					form: {
-						rules: [
-							{ required: true, message: '请选择周期' },
-						],
+						value: 'once',
 						component: {
 							placeholder: '请选择周期',
 						},
@@ -381,6 +379,32 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 									],
 									isMultiple: true,
 									pagination: true,
+									searchFields: [
+										{
+											prop: 'category',
+											label: '场所类型',
+											type: 'select',
+											options: [
+												{ label: '大型商超', value: 1 },
+												{ label: '商业综合体', value: 2 },
+												{ label: '大型餐饮饭店', value: 3 },
+												{ label: '大型宾馆', value: 4 },
+												{ label: '大型洗浴', value: 5 },
+												{ label: '成品油市场', value: 6 },
+												{ label: '再生资源回收利用', value: 7 },
+												{ label: '新车，二手车销售', value: 8 },
+												{ label: '洗车服务（不包括“汽车修理与维护”）', value: 9 },
+												{ label: '托管班、“小饭桌”、自习室等校外托管服务场所（不包含课余辅导、教育培训）', value: 10 },
+												{ label: '九小场所（小超市、小饭馆、小旅店、小美容洗浴）', value: 11 },
+												{ label: '拍卖', value: 12 },
+												{ label: '旧货流通', value: 13 },
+												{ label: '报废机动车回收', value: 14 },
+												{ label: '摄影服务（婚纱摄影）', value: 15 },
+												{ label: '家用电器修理', value: 16 },
+												{ label: '其他', value: 17 },
+											]
+										}
+									]
 								},
 							},
 						},
@@ -482,6 +506,24 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 
 								const selected = (form as any).check_items_list as string[];
 
+								// 获取所有检查项
+								const allItems = categories.flatMap((cat) => cat.items);
+								const isAllSelected = allItems.length > 0 && allItems.every((item) => selected.includes(item));
+								const isIndeterminate = selected.length > 0 && selected.length < allItems.length;
+
+								// 全选/取消全选处理函数
+								const handleSelectAll = (checked: boolean) => {
+									if (checked) {
+										// 全选：添加所有项
+										(form as any).check_items_list = [...allItems];
+										form.check_items = allItems.join(',');
+									} else {
+										// 取消全选：清空所有项
+										(form as any).check_items_list = [];
+										form.check_items = '';
+									}
+								};
+
 								// 渲染左侧类别 + 右侧对应多选项
 								return h('div', { style: 'display: flex; gap: 16px;' }, [
 									// 左侧类别列表（仅展示，点击辅助定位）
@@ -506,45 +548,57 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 									h(
 										'div',
 										{ style: 'flex: 1; padding-left: 8px; max-height: 320px; overflow: auto;' },
-										categories.map((cat, index) =>
-											h('div', { style: 'margin-bottom: 12px;' }, [
-												h(
-													'div',
-													{
-														style:
-															'margin-bottom: 4px; font-weight: 500; color: #303133;',
-													},
-													cat.label
-												),
-												h(
-													ElCheckboxGroup,
-													{
-														modelValue: selected,
-														'onUpdate:modelValue': (val: string[]) => {
-															(form as any).check_items_list = val;
-															form.check_items = val.join(',');
+										[
+											// 全选复选框
+											h('div', { style: 'margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #ebeef5;' }, [
+												h(ElCheckbox, {
+													modelValue: isAllSelected,
+													indeterminate: isIndeterminate,
+													'onUpdate:modelValue': handleSelectAll,
+													style: 'font-weight: 500; font-size: 14px;',
+												}, () => '全选'),
+											]),
+											// 各类别的检查项
+											...categories.map((cat, index) =>
+												h('div', { style: 'margin-bottom: 12px;' }, [
+													h(
+														'div',
+														{
+															style:
+																'margin-bottom: 4px; font-weight: 500; color: #303133;',
 														},
-													},
-													() =>
-														cat.items.map((item) =>
-															h(
-																ElCheckbox,
-																{
-																	label: item,
-																	style:
-																		'display: block; margin: 2px 0;',
-																},
-																() => item
+														cat.label
+													),
+													h(
+														ElCheckboxGroup,
+														{
+															modelValue: selected,
+															'onUpdate:modelValue': (val: string[]) => {
+																(form as any).check_items_list = val;
+																form.check_items = val.join(',');
+															},
+														},
+														() =>
+															cat.items.map((item) =>
+																h(
+																	ElCheckbox,
+																	{
+																		label: item,
+																		style:
+																			'display: block; margin: 2px 0;',
+																	},
+																	() => item
+																)
 															)
-														)
-												),
-												index < categories.length - 1
-													? h(ElDivider, {
-															style: 'margin: 8px 0;',
-													  })
-													: null,
-											])
-										)
+													),
+													index < categories.length - 1
+														? h(ElDivider, {
+																style: 'margin: 8px 0;',
+														  })
+														: null,
+												])
+											),
+										]
 									),
 								]);
 							},

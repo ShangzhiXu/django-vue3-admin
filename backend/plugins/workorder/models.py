@@ -266,7 +266,7 @@ class WorkOrderRecheck(CoreModel):
 
 class SupervisionPush(CoreModel):
     """
-    督办推送记录模型
+    督办中心记录模型
     """
     # 推送标题
     title = models.CharField(max_length=255, verbose_name='推送标题', help_text='推送标题')
@@ -327,7 +327,7 @@ class SupervisionPush(CoreModel):
 
     class Meta:
         db_table = table_prefix + "supervision_push"
-        verbose_name = "督办推送记录"
+        verbose_name = "督办中心记录"
         verbose_name_plural = verbose_name
         ordering = ('-create_datetime',)
     

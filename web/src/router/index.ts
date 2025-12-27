@@ -150,6 +150,15 @@ router.beforeEach(async (to, from, next) => {
                     next({ path: to.path, query: to.query });
                 }
             } else {
+                // 调试督办中心路由
+                if (to.path === '/supervision') {
+                    console.log('[router.beforeEach] 督办中心路由守卫:', {
+                        path: to.path,
+                        name: to.name,
+                        matched: to.matched,
+                        routesListLength: routesList.value.length
+                    });
+                }
                 next();
             }
         }
@@ -159,6 +168,16 @@ router.beforeEach(async (to, from, next) => {
 // 路由加载后
 router.afterEach((to, from) => {
     NProgress.done();
+    // 调试督办中心路由
+    if (to.path === '/supervision') {
+        console.log('[router.afterEach] 访问督办中心路由:', to);
+        console.log('[router.afterEach] 路由匹配信息:', {
+            path: to.path,
+            name: to.name,
+            matched: to.matched.map(m => ({ path: m.path, name: m.name })),
+            component: to.matched[to.matched.length - 1]?.components?.default
+        });
+    }
     // 如果跳转到首页且不是从首页跳转过来的，触发首页数据刷新（无感刷新）
     if (to.path === '/home' && from.path !== '/home' && from.path !== '/') {
         // 使用自定义事件通知首页组件刷新数据，而不是刷新整个页面

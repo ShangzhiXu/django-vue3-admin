@@ -21,6 +21,7 @@ class MerchantSerializer(CustomModelSerializer):
     商户管理-序列化器
     """
     qr_code_url = serializers.SerializerMethodField(read_only=True)
+    responsible_person_name = serializers.SerializerMethodField(read_only=True)
     
     def get_qr_code_url(self, obj):
         """
@@ -38,6 +39,12 @@ class MerchantSerializer(CustomModelSerializer):
                     # 返回完整的URL
                     return request.build_absolute_uri(f'/{file_path}')
                 return f'/{file_path}'
+        return None
+    
+    def get_responsible_person_name(self, obj):
+        """获取包保责任人名称"""
+        if obj.responsible_person:
+            return obj.responsible_person.name
         return None
     
     class Meta:

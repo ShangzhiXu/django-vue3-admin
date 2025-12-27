@@ -52,6 +52,7 @@ const siteLogo = computed(() => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	padding-left: 30px;
 	box-shadow: rgb(0 21 41 / 2%) 0px 1px 4px;
 	color: var(--el-color-primary);
 	font-size: 16px;

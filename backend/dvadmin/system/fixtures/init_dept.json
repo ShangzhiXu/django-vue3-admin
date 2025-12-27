@@ -1,7 +1,18 @@
 [
     {
-        "name": "总部",
-        "key": "dvadmin",
+        "name": "全部",
+        "key": "all",
+        "sort": 0,
+        "owner": "",
+        "phone": "",
+        "email": "",
+        "status": true,
+        "parent": null,
+        "children": []
+    },
+    {
+        "name": "商务局",
+        "key": "swj",
         "sort": 1,
         "owner": "",
         "phone": "",
@@ -10,26 +21,244 @@
         "parent": null,
         "children": [
             {
-                "name": "运营部",
-                "key": "zongbu",
-                "sort": 2,
-                "owner": "",
-                "phone": "",
-                "email": "",
-                "status": true,
-                "parent": 1,
-                "children": []
-            },
-            {
-                "name": "技术部",
-                "key": "technology",
+                "name": "局机关",
+                "key": "swj_jgj",
                 "sort": 1,
                 "owner": "",
                 "phone": "",
                 "email": "",
                 "status": true,
-                "parent": 3,
-                "children": []
+                "parent": null,
+                "children": [
+                    {
+                        "name": "安全科",
+                        "key": "swj_jgj_aqk",
+                        "sort": 1,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    },
+                    {
+                        "name": "办公室",
+                        "key": "swj_jgj_bgs",
+                        "sort": 2,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    },
+                    {
+                        "name": "经济技术科",
+                        "key": "swj_jgj_jjjs",
+                        "sort": 3,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    },
+                    {
+                        "name": "商贸流通科",
+                        "key": "swj_jgj_smlt",
+                        "sort": 4,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    },
+                    {
+                        "name": "党办",
+                        "key": "swj_jgj_db",
+                        "sort": 5,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "name": "招商和项目中心",
+                "key": "swj_zshxmzx",
+                "sort": 2,
+                "owner": "",
+                "phone": "",
+                "email": "",
+                "status": true,
+                "parent": null,
+                "children": [
+                    {
+                        "name": "办公室",
+                        "key": "swj_zshxmzx_bgs",
+                        "sort": 1,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    },
+                    {
+                        "name": "服务科",
+                        "key": "swj_zshxmzx_fwk",
+                        "sort": 2,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    },
+                    {
+                        "name": "招商科",
+                        "key": "swj_zshxmzx_zsk",
+                        "sort": 3,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "name": "劳务输出中心",
+                "key": "swj_lwsczx",
+                "sort": 3,
+                "owner": "",
+                "phone": "",
+                "email": "",
+                "status": true,
+                "parent": null,
+                "children": [
+                    {
+                        "name": "劳务输出中心",
+                        "key": "swj_lwsczx_lwsczx",
+                        "sort": 1,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "name": "住建局",
+        "key": "zjj",
+        "sort": 2,
+        "owner": "",
+        "phone": "",
+        "email": "",
+        "status": true,
+        "parent": null,
+        "children": [
+            {
+                "name": "局机关",
+                "key": "zjj_jgj",
+                "sort": 1,
+                "owner": "",
+                "phone": "",
+                "email": "",
+                "status": true,
+                "parent": null,
+                "children": [
+                    {
+                        "name": "办公室",
+                        "key": "zjj_jgj_bgs",
+                        "sort": 1,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "name": "消防救援大队",
+        "key": "xfjydd",
+        "sort": 3,
+        "owner": "",
+        "phone": "",
+        "email": "",
+        "status": true,
+        "parent": null,
+        "children": [
+            {
+                "name": "大队机关",
+                "key": "xfjydd_ddjg",
+                "sort": 1,
+                "owner": "",
+                "phone": "",
+                "email": "",
+                "status": true,
+                "parent": null,
+                "children": [
+                    {
+                        "name": "办公室",
+                        "key": "xfjydd_ddjg_bgs",
+                        "sort": 1,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "name": "应急局",
+        "key": "yjj",
+        "sort": 4,
+        "owner": "",
+        "phone": "",
+        "email": "",
+        "status": true,
+        "parent": null,
+        "children": [
+            {
+                "name": "局机关",
+                "key": "yjj_jgj",
+                "sort": 1,
+                "owner": "",
+                "phone": "",
+                "email": "",
+                "status": true,
+                "parent": null,
+                "children": [
+                    {
+                        "name": "办公室",
+                        "key": "yjj_jgj_bgs",
+                        "sort": 1,
+                        "owner": "",
+                        "phone": "",
+                        "email": "",
+                        "status": true,
+                        "parent": null,
+                        "children": []
+                    }
+                ]
             }
         ]
     }

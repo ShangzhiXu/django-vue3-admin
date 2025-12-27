@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
+from collections import defaultdict
 
 from dvadmin.utils.json_response import DetailResponse
 from plugins.merchant.models import Merchant
@@ -132,7 +133,7 @@ class HomeViewSet(ViewSet):
     @action(methods=['get'], detail=False)
     def dashboard(self, request):
         """
-        获取数据大屏统计数据
+        获取数据中心统计数据
         """
         today = date.today()
         
@@ -186,63 +187,101 @@ class HomeViewSet(ViewSet):
         warning_list = []
         for wo in warnings:
             if wo.merchant:
-                # 从问题描述中提取关键信息，如果没有则使用隐患等级
-                if wo.problem_description:
-                    problem = wo.problem_description[:20] if len(wo.problem_description) > 20 else wo.problem_description
+                # 始终显示检查类别（问题类别）
+                if wo.check_category:
+                    # 获取检查类别显示值
+                    category_display = dict(WorkOrder.CHECK_CATEGORY_CHOICES).get(wo.check_category, '未知')
+                    problem = category_display
                 else:
-                    # 获取隐患等级显示值
-                    hazard_level_display = dict(WorkOrder.HAZARD_LEVEL_CHOICES).get(wo.hazard_level, '未知')
-                    problem = f"{hazard_level_display}隐患"
+                    # 如果没有检查类别，显示"未分类"
+                    problem = '未分类'
                 warning_list.append({
                     'merchant_name': wo.merchant.name,
                     'problem': problem,
                     'workorder_no': wo.workorder_no,
                 })
         
-        # 4. 人员绩效Top5（按负责的工单数量排序）
-        # 统计每个检查人和包保责任人负责的工单数量
-        # 统计检查人
-        inspector_data = WorkOrder.objects.filter(
-            inspector__isnull=False
-        ).values('inspector__id', 'inspector__name').annotate(
-            workorder_count=Count('id')
-        )
-        # 统计包保责任人
-        responsible_data = WorkOrder.objects.filter(
-            responsible_person__isnull=False
+        # 4. 人员绩效Top5（按被督办的工单数量排序，显示包保责任人）
+        # 统计每个包保责任人被督办的工单数量
+        supervised_data = WorkOrder.objects.filter(
+            responsible_person__isnull=False,
+            is_supervised=True
         ).values('responsible_person__id', 'responsible_person__name').annotate(
-            workorder_count=Count('id')
+            supervised_count=Count('id')
         )
-        
-        # 合并统计（按用户ID合并）
-        user_performance = {}
-        for item in inspector_data:
-            user_id = item['inspector__id']
-            if user_id not in user_performance:
-                user_performance[user_id] = {
-                    'name': item['inspector__name'] or '未知',
-                    'count': 0
-                }
-            user_performance[user_id]['count'] += item['workorder_count']
-        
-        for item in responsible_data:
-            user_id = item['responsible_person__id']
-            if user_id not in user_performance:
-                user_performance[user_id] = {
-                    'name': item['responsible_person__name'] or '未知',
-                    'count': 0
-                }
-            user_performance[user_id]['count'] += item['workorder_count']
         
         # 排序并取前5
         performance_list = sorted(
-            [{'name': v['name'], 'count': v['count']} for v in user_performance.values()],
+            [{'name': item['responsible_person__name'] or '未知', 'count': item['supervised_count']} for item in supervised_data],
             key=lambda x: x['count'],
             reverse=True
         )[:5]
         
         for idx, item in enumerate(performance_list, 1):
             item['rank'] = idx
+        
+        # 5. 移交总数
+        transfer_total = WorkOrder.objects.filter(is_transferred=True).count()
+        
+        # 6. 场所分类统计（饼图数据）
+        category_map = dict(Merchant.CATEGORY_CHOICES)
+        category_stats = defaultdict(int)
+        
+        # 统计每个场所类别的商户数量
+        merchant_categories = Merchant.objects.values('category').annotate(count=Count('id'))
+        for item in merchant_categories:
+            category_id = item['category']
+            category_name = category_map.get(category_id, f'类别{category_id}')
+            category_stats[category_name] = item['count']
+        
+        # 转换为列表格式，用于饼图
+        category_pie_data = [
+            {'name': name, 'value': count}
+            for name, count in sorted(category_stats.items(), key=lambda x: x[1], reverse=True)
+        ]
+        
+        # 7. 问题类别柱状图数据（已有数据，转换为列表格式）
+        problem_bar_data = [
+            {'name': '消防类', 'value': fire_count},
+            {'name': '燃气类', 'value': gas_count},
+            {'name': '安全管理类', 'value': safety_count},
+            {'name': '液体燃料类', 'value': liquid_fuel_count},
+            {'name': '其他', 'value': other_count},
+        ]
+        
+        # 8. 隐患热力图数据（每个商户一个点，隐患越多颜色越深）
+        # 按商户统计隐患数量
+        merchant_hazards = WorkOrder.objects.filter(
+            hazard_level__isnull=False,
+            merchant__isnull=False,
+            merchant__gps_status__isnull=False
+        ).values(
+            'merchant__id',
+            'merchant__name',
+            'merchant__gps_status'
+        ).annotate(
+            hazard_count=Count('id')
+        )
+        
+        heatmap_points = []
+        for merchant in merchant_hazards:
+            gps_str = merchant['merchant__gps_status']
+            if gps_str:
+                # GPS格式可能是 "经度,纬度" 或 "-37,145"
+                try:
+                    parts = gps_str.split(',')
+                    if len(parts) == 2:
+                        lng = float(parts[0].strip())
+                        lat = float(parts[1].strip())
+                        hazard_count = merchant['hazard_count']
+                        heatmap_points.append({
+                            'lng': lng,
+                            'lat': lat,
+                            'hazard_count': hazard_count,
+                            'merchant_name': merchant['merchant__name'],
+                        })
+                except (ValueError, IndexError):
+                    continue
         
         data = {
             'today_overview': {
@@ -257,8 +296,12 @@ class HomeViewSet(ViewSet):
                 'liquid_fuel': liquid_fuel_count,
                 'other': other_count,
             },
+            'problem_bar_data': problem_bar_data,  # 柱状图数据
             'warnings': warning_list,
             'performance_top5': performance_list,
+            'transfer_total': transfer_total,  # 移交总数
+            'category_pie_data': category_pie_data,  # 场所分类饼图数据
+            'heatmap_points': heatmap_points,  # 隐患热力图点位数据
         }
         
         return DetailResponse(data=data)

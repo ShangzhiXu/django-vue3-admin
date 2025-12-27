@@ -317,8 +317,55 @@ export const createCrudOptions = function ({ crudExpose, context }: CreateCrudOp
 									],
 									isMultiple: false,
 									pagination: true,
+									searchFields: [
+										{
+											prop: 'category',
+											label: '场所类型',
+											type: 'select',
+											options: [
+												{ label: '大型商超', value: 1 },
+												{ label: '商业综合体', value: 2 },
+												{ label: '大型餐饮饭店', value: 3 },
+												{ label: '大型宾馆', value: 4 },
+												{ label: '大型洗浴', value: 5 },
+												{ label: '成品油市场', value: 6 },
+												{ label: '再生资源回收利用', value: 7 },
+												{ label: '新车，二手车销售', value: 8 },
+												{ label: '洗车服务（不包括"汽车修理与维护"）', value: 9 },
+												{ label: '托管班、"小饭桌"、自习室等校外托管服务场所（不包含课余辅导、教育培训）', value: 10 },
+												{ label: '九小场所（小超市、小饭馆、小旅店、小美容洗浴）', value: 11 },
+												{ label: '拍卖', value: 12 },
+												{ label: '旧货流通', value: 13 },
+												{ label: '报废机动车回收', value: 14 },
+												{ label: '摄影服务（婚纱摄影）', value: 15 },
+												{ label: '家用电器修理', value: 16 },
+												{ label: '其他', value: 17 },
+											]
+										}
+									]
 								},
 							},
+						},
+						valueChange: async (context: any) => {
+							// 当商户改变时，从商户继承包保责任人
+							const { form } = context;
+							if (form.merchant) {
+								try {
+									// 获取商户详细信息
+									const merchantRes = await request({
+										url: `/api/merchant/${form.merchant}/`,
+										method: 'get',
+									});
+									if (merchantRes && merchantRes.data && merchantRes.data.responsible_person) {
+										// 如果商户有包保责任人，且工单未设置包保责任人，则自动填充
+										if (!form.responsible_person) {
+											form.responsible_person = merchantRes.data.responsible_person;
+										}
+									}
+								} catch (error) {
+									console.error('获取商户信息失败:', error);
+								}
+							}
 						},
 					},
 				},

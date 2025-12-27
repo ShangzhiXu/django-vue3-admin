@@ -6,7 +6,7 @@ table_prefix = "task_"
 
 class Task(CoreModel):
     """
-    任务管理模型
+    任务中心模型
     """
     # 任务名称
     name = models.CharField(max_length=255, verbose_name='任务名称', help_text='任务名称')
@@ -35,6 +35,9 @@ class Task(CoreModel):
     cycle = models.CharField(
         max_length=20,
         choices=CYCLE_CHOICES,
+        default='once',
+        null=True,
+        blank=True,
         verbose_name='周期',
         help_text='任务周期'
     )
@@ -71,7 +74,7 @@ class Task(CoreModel):
 
     class Meta:
         db_table = table_prefix + "task"
-        verbose_name = "任务管理"
+        verbose_name = "任务中心"
         verbose_name_plural = verbose_name
         ordering = ('-create_datetime',)
     

@@ -26,18 +26,90 @@ const dynamicViewsModules: Record<string, Function> = Object.assign({}, { ...lay
  * @returns 返回处理成函数后的 component
  */
 export function dynamicImport(dynamicViewsModules: Record<string, Function>, component: string) {
+    if (!component) {
+        console.error('dynamicImport: component 为空');
+        return false;
+    }
+    
     const keys = Object.keys(dynamicViewsModules);
+    // 处理组件路径：移除开头的斜杠，移除 plugins/ 前缀
+    let newComponent = component.replace(/^\//, '').replace(/^plugins\//, "");
+    
+    // 调试信息
+    if (component.includes('supervision')) {
+        console.log(`[dynamicImport] 查找组件: ${component} -> ${newComponent}`);
+        console.log(`[dynamicImport] 相关路径:`, keys.filter(k => k.includes('supervision')).slice(0, 5));
+    }
+    
     const matchKeys = keys.filter((key) => {
-        const k = key.replace(/..\/views|../, '');
-        return k.startsWith(`${component}`) || k.startsWith(`/${component}`);
+        // 移除 ../views 前缀
+        let k = key.replace(/^\.\.\/views\//, '').replace(/^\.\.\//, '');
+        // 移除文件扩展名
+        k = k.replace(/\.(vue|tsx)$/, '');
+        // 移除开头的斜杠
+        k = k.replace(/^\//, '');
+        
+        // 匹配处理后的路径：精确匹配或路径结尾匹配
+        // 例如：plugins/supervision/index 应该匹配到 ../views/plugins/supervision/index.vue
+        // 处理后：supervision/index 应该匹配到 plugins/supervision/index
+        const matches = k === newComponent || k.endsWith(`/${newComponent}`) || k === `plugins/${newComponent}` || k.endsWith(`/plugins/${newComponent}`);
+        
+        if (component.includes('supervision') && matches) {
+            console.log(`[dynamicImport] 匹配成功: ${key} -> ${k} === ${newComponent}`);
+        }
+        
+        return matches;
     });
+    
     if (matchKeys?.length === 1) {
         const matchKey = matchKeys[0];
+        if (component.includes('supervision')) {
+            console.log(`[dynamicImport] 找到唯一匹配: ${component} -> ${matchKey}`);
+        }
         return dynamicViewsModules[matchKey];
     }
     if (matchKeys?.length > 1) {
+        console.warn(`[dynamicImport] 找到多个匹配的组件路径: ${component}`, matchKeys);
+        // 优先选择最精确的匹配（路径最长的）
+        const bestMatch = matchKeys.reduce((prev, curr) => {
+            return curr.length > prev.length ? curr : prev;
+        });
+        console.log(`[dynamicImport] 选择最佳匹配: ${bestMatch}`);
+        return dynamicViewsModules[bestMatch];
+    }
+    // 如果没有匹配到，尝试直接匹配完整路径
+    if (matchKeys?.length === 0) {
+        // 尝试多种匹配方式
+        const directMatch = keys.find((key) => {
+            // 方式1: 直接包含 supervision/index
+            if (component.includes('supervision') && key.includes('supervision/index')) return true;
+            // 方式2: 标准化后匹配 - 移除所有前缀和扩展名后精确匹配
+            const normalizedKey = key.replace(/^\.\.\/views\//, '').replace(/\.(vue|tsx)$/, '');
+            const normalizedComponent = component.replace(/^\//, '').replace(/^plugins\//, '');
+            // 检查是否以 normalizedComponent 结尾
+            if (normalizedKey.endsWith(normalizedComponent) || normalizedKey === normalizedComponent) return true;
+            // 方式3: 检查是否包含完整路径
+            if (normalizedKey.includes(normalizedComponent)) return true;
+            return false;
+        });
+        if (directMatch) {
+            console.warn(`[dynamicImport] 使用直接匹配找到组件: ${component} -> ${directMatch}`);
+            return dynamicViewsModules[directMatch];
+        }
+        // 最后尝试：精确匹配 plugins/supervision/index 格式
+        const componentWithPlugins = component.startsWith('plugins/') ? component : `plugins/${component}`;
+        const finalMatch = keys.find((key) => {
+            const normalizedKey = key.replace(/^\.\.\/views\//, '').replace(/\.(vue|tsx)$/, '');
+            return normalizedKey === componentWithPlugins || normalizedKey.endsWith(`/${componentWithPlugins}`);
+        });
+        if (finalMatch) {
+            console.warn(`[dynamicImport] 使用最终匹配找到组件: ${component} -> ${finalMatch}`);
+            return dynamicViewsModules[finalMatch];
+        }
+        console.error(`[dynamicImport] 未找到匹配的组件: ${component}`, '可用路径:', keys.filter(k => k.includes('supervision')).slice(0, 10));
         return false;
     }
+    return false;
 }
 
 /**
@@ -65,18 +137,45 @@ export const handleMenu = (menuData: Array<any>) => {
             roles: ['admin'],
             icon: item.icon
         }
-        item.component =  dynamicImport(dynamicViewsModules, item.component as string)
+        // 只有在不是目录、不是链接的情况下才处理组件
+        if (!item.is_catalog && !item.is_link && item.component) {
+            const componentPath = item.component as string;
+            if (componentPath.includes('supervision')) {
+                console.log(`[handleMenu] 处理督办中心组件:`, componentPath, item);
+            }
+            // 如果 component 是字符串，需要转换为组件函数
+            if (typeof item.component === 'string') {
+                const importedComponent = dynamicImport(dynamicViewsModules, componentPath);
+                if (importedComponent) {
+                    item.component = importedComponent;
+                    if (componentPath.includes('supervision')) {
+                        console.log(`[handleMenu] 督办中心组件加载成功:`, item);
+                    }
+                } else {
+                    console.error(`[handleMenu] 无法加载组件: ${componentPath}`, item);
+                    // 组件加载失败时，设置一个错误组件，避免路由无法渲染
+                    item.component = () => Promise.resolve({
+                        default: {
+                            template: '<div style="padding: 20px; text-align: center;"><h3 style="color: #f56c6c;">组件加载失败</h3><p>无法加载组件: ' + componentPath + '</p><p style="color: #909399; font-size: 12px;">请检查组件路径是否正确</p></div>'
+                        }
+                    });
+                }
+            }
+        }
         if(item.is_catalog){
             // 对目录的处理
-            item.component = dynamicImport(dynamicViewsModules, 'layout/routerView/parent')
+            const catalogComponent = dynamicImport(dynamicViewsModules, 'layout/routerView/parent');
+            if (catalogComponent) item.component = catalogComponent;
         }
         if(item.is_link){
             // 对外链接的处理
             item.meta.isIframe = !item.is_iframe
             if(item.is_iframe){
-                item.component = dynamicImport(dynamicViewsModules, 'layout/routerView/link')
+                const iframeComponent = dynamicImport(dynamicViewsModules, 'layout/routerView/link');
+                if (iframeComponent) item.component = iframeComponent;
             }else {
-                item.component = dynamicImport(dynamicViewsModules, 'layout/routerView/iframes')
+                const linkComponent = dynamicImport(dynamicViewsModules, 'layout/routerView/iframes');
+                if (linkComponent) item.component = linkComponent;
             }
         }else{
             if(item.is_iframe){
@@ -94,7 +193,8 @@ export const handleMenu = (menuData: Array<any>) => {
                 item.meta.isLink = item.web_path
                 item.meta.isIframe = !item.is_iframe
                 //item.meta.isIframeOpen = true
-                item.component = dynamicImport(dynamicViewsModules, 'layout/routerView/link.vue')
+                const linkComponent = dynamicImport(dynamicViewsModules, 'layout/routerView/link.vue');
+                if (linkComponent) item.component = linkComponent;
             }
         }
         item.children && handleMeta(item.children);

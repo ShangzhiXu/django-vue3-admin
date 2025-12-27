@@ -17,7 +17,7 @@ from plugins.workorder.views.workorder import WorkOrderSerializer
 
 class TaskSerializer(CustomModelSerializer):
     """
-    任务管理-序列化器
+    任务中心-序列化器
     """
     merchant_count = serializers.SerializerMethodField(read_only=True)
     workorder_count = serializers.SerializerMethodField(read_only=True)
@@ -267,6 +267,7 @@ class TaskCreateSerializer(CustomModelSerializer):
                     merchant=merchant,
                     task=task,
                     inspector=task.manager,  # 从任务继承检查人
+                    responsible_person=merchant.responsible_person if merchant.responsible_person else None,  # 从商户继承包保责任人
                     hazard_level='medium',  # 默认隐患等级为中等
                     deadline=deadline,
                     status=0,  # 默认状态为待整改
@@ -468,7 +469,7 @@ class TaskExportSerializer(CustomModelSerializer):
 
 class TaskViewSet(CustomModelViewSet):
     """
-    任务管理接口
+    任务中心接口
     list:查询
     create:新增
     update:修改

@@ -2,7 +2,8 @@ import * as api from './api';
 import { UserPageQuery, AddReq, DelReq, EditReq, CreateCrudOptionsProps, CreateCrudOptionsRet, dict } from '@fast-crud/fast-crud';
 import { ElMessage, ElButton } from 'element-plus';
 import { getBaseURL } from '/@/utils/baseUrl';
-import { h } from 'vue';
+import { h, shallowRef, ref } from 'vue';
+import tableSelector from '/@/components/tableSelector/index.vue';
 
 export const createCrudOptions = function ({ crudExpose }: CreateCrudOptionsProps): CreateCrudOptionsRet {
 	const pageRequest = async (query: UserPageQuery) => {
@@ -18,6 +19,22 @@ export const createCrudOptions = function ({ crudExpose }: CreateCrudOptionsProp
 	const addRequest = async ({ form }: AddReq) => {
 		return await api.AddObj(form);
 	};
+	
+	// 包保责任人选择的 tableConfig，动态更新 extraParams
+	const responsiblePersonTableConfig = ref({
+		url: '/api/system/user/',
+		label: 'name',
+		value: 'id',
+		columns: [
+			{ prop: 'name', label: '姓名', width: 120 },
+			{ prop: 'username', label: '账号', width: 120 },
+			{ prop: 'mobile', label: '电话', width: 150 },
+		],
+		isMultiple: false,
+		pagination: true,
+		extraParams: {} as any,
+	});
+	
 	return {
 		crudOptions: {
 			request: {
@@ -180,6 +197,37 @@ export const createCrudOptions = function ({ crudExpose }: CreateCrudOptionsProp
 					form: {
 						component: {
 							placeholder: '请输入负责人',
+						},
+					},
+				},
+				responsible_person: {
+					title: '包保责任人',
+					type: 'table-selector',
+					search: {
+						show: false,
+					},
+					column: {
+						minWidth: 120,
+						align: 'center',
+						formatter: (context: any) => {
+							// 如果后端返回了包保责任人名称
+							if (context.row.responsible_person_name) {
+								return context.row.responsible_person_name;
+							}
+							// 如果后端返回了包保责任人对象
+							if (context.row.responsible_person && typeof context.row.responsible_person === 'object') {
+								return context.row.responsible_person.name || '-';
+							}
+							return context.value ? `用户ID: ${context.value}` : '-';
+						},
+					},
+					form: {
+						component: {
+							name: shallowRef(tableSelector),
+							props: {
+								tableConfig: responsiblePersonTableConfig,
+							},
+							placeholder: '请选择包保责任人（会继承到该商户的工单中）',
 						},
 					},
 				},

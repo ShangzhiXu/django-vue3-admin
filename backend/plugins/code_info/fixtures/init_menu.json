@@ -51,7 +51,7 @@
     {
         "name": "商户管理",
         "icon": "ele-ShoppingBag",
-        "sort": 8,
+        "sort": 6,
         "is_link": false,
         "is_catalog": false,
         "web_path": "/merchant",
@@ -66,9 +66,26 @@
         "menu_field": []
     },
     {
-        "name": "数据大屏",
+        "name": "移交中心",
+        "icon": "ele-Switch",
+        "sort": 5,
+        "is_link": false,
+        "is_catalog": false,
+        "web_path": "/transfer",
+        "component": "plugins/supervision/transfer/index",
+        "component_name": "transfer",
+        "status": true,
+        "cache": false,
+        "visible": true,
+        "parent": null,
+        "children": [],
+        "menu_button": [],
+        "menu_field": []
+    },
+    {
+        "name": "数据中心",
         "icon": "ele-DataAnalysis",
-        "sort": 7,
+        "sort": 6,
         "is_link": false,
         "is_catalog": false,
         "web_path": "/dashboard",
@@ -83,9 +100,9 @@
         "menu_field": []
     },
     {
-        "name": "任务管理",
+        "name": "任务中心",
         "icon": "ele-List",
-        "sort": 6,
+        "sort": 1,
         "is_link": false,
         "is_catalog": false,
         "web_path": "/task",
@@ -102,7 +119,7 @@
     {
         "name": "工单中心",
         "icon": "ele-Document",
-        "sort": 5,
+        "sort": 2,
         "is_link": false,
         "is_catalog": false,
         "web_path": "/workorder",
@@ -117,9 +134,9 @@
         "menu_field": []
     },
     {
-        "name": "督办推送",
-        "icon": "ele-MessageFilled",
-        "sort": 4,
+        "name": "督办中心",
+        "icon": "ele-Promotion",
+        "sort": 3,
         "is_link": false,
         "is_catalog": false,
         "web_path": "/supervision",

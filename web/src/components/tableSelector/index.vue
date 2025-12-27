@@ -1,6 +1,6 @@
 <template>
 	<el-select
-		popper-class="popperClass"
+		:popper-class="showDeptTree ? 'popperClass with-dept-tree' : 'popperClass'"
 		class="tableSelector"
 		:multiple="props.tableConfig.isMultiple"
 		:collapseTags="props.tableConfig.collapseTags"
@@ -9,49 +9,92 @@
 		@visible-change="visibleChange"
 	>
 		<template #empty>
-			<div class="option">
-				<el-input style="margin-bottom: 10px" v-model="search" clearable placeholder="请输入关键词" @change="getDict" @clear="getDict">
-					<template #append>
-						<el-button type="primary" icon="Search" />
-					</template>
-				</el-input>
-				<el-table
-					ref="tableRef"
-					:data="tableData"
-					:size="props.tableConfig.size"
-					border
-					row-key="id"
-					:lazy="props.tableConfig.lazy"
-					:load="props.tableConfig.load"
-					:tree-props="props.tableConfig.treeProps"
-					style="width: 600px"
-					max-height="200"
-					height="200"
-					:highlight-current-row="!props.tableConfig.isMultiple"
-					@selection-change="handleSelectionChange"
-					@select="handleSelect"
-					@selectAll="handleSelectionChange"
-					@current-change="handleCurrentChange"
-				>
-					<el-table-column fixed type="selection" reserve-selection width="55" :selectable="getSelectable" />
-					<el-table-column fixed type="index" label="#" width="50" />
-					<el-table-column
-						:prop="item.prop"
-						:label="item.label"
-						:width="item.width"
-						v-for="(item, index) in props.tableConfig.columns"
-						:key="index"
-					/>
-				</el-table>
-				<el-pagination
-					style="margin-top: 10px"
-					background
-					v-model:current-page="pageConfig.page"
-					v-model:page-size="pageConfig.limit"
-					layout="prev, pager, next"
-					:total="pageConfig.total"
-					@current-change="handlePageChange"
-				/>
+			<div class="option" @click.stop>
+				<div class="selector-container" :class="{ 'with-dept-tree': showDeptTree }">
+					<!-- 部门树（左侧，仅在选择用户时显示） -->
+					<div v-if="showDeptTree" class="dept-tree-container">
+						<div class="dept-tree-header">部门</div>
+						<el-tree
+							ref="deptTreeRef"
+							:data="deptTreeData"
+							:props="deptTreeProps"
+							node-key="id"
+							:default-expand-all="false"
+							:highlight-current="true"
+							@node-click="handleDeptNodeClick"
+							style="max-height: 400px; overflow: auto;"
+						/>
+					</div>
+					
+					<!-- 右侧内容区域 -->
+					<div class="content-container">
+						<div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; align-items: center;">
+							<el-input style="width: 200px;" v-model="search" clearable placeholder="请输入关键词" @change="getDict" @clear="getDict" />
+							
+							<template v-if="props.tableConfig.searchFields">
+								<template v-for="field in props.tableConfig.searchFields" :key="field.prop">
+									<el-select
+										v-if="field.type === 'select'"
+										v-model="extraSearchParams[field.prop]"
+										:placeholder="field.label"
+										clearable
+										style="width: 150px"
+										:teleported="false"
+										@change="getDict"
+										@clear="getDict"
+									>
+										<el-option
+											v-for="opt in field.options"
+											:key="opt.value"
+											:label="opt.label"
+											:value="opt.value"
+										/>
+									</el-select>
+								</template>
+							</template>
+							
+							<el-button type="primary" icon="Search" @click="getDict">搜索</el-button>
+							<el-button @click="resetSearch">重置</el-button>
+						</div>
+						<el-table
+							ref="tableRef"
+							:data="tableData"
+							:size="props.tableConfig.size"
+							border
+							row-key="id"
+							:lazy="props.tableConfig.lazy"
+							:load="props.tableConfig.load"
+							:tree-props="props.tableConfig.treeProps"
+							style="width: 100%"
+							max-height="200"
+							height="200"
+							:highlight-current-row="!props.tableConfig.isMultiple"
+							@selection-change="handleSelectionChange"
+							@select="handleSelect"
+							@selectAll="handleSelectionChange"
+							@current-change="handleCurrentChange"
+						>
+							<el-table-column fixed type="selection" reserve-selection width="55" :selectable="getSelectable" />
+							<el-table-column fixed type="index" label="#" width="50" />
+							<el-table-column
+								:prop="item.prop"
+								:label="item.label"
+								:width="item.width"
+								v-for="(item, index) in props.tableConfig.columns"
+								:key="index"
+							/>
+						</el-table>
+						<el-pagination
+							style="margin-top: 10px"
+							background
+							v-model:current-page="pageConfig.page"
+							v-model:page-size="pageConfig.limit"
+							layout="prev, pager, next"
+							:total="pageConfig.total"
+							@current-change="handlePageChange"
+						/>
+					</div>
+				</div>
 			</div>
 		</template>
 	</el-select>
@@ -61,6 +104,7 @@
 import { computed, defineProps, onMounted, reactive, ref, watch } from 'vue';
 import XEUtils from 'xe-utils';
 import { request } from '/@/utils/service';
+import { ElTree } from 'element-plus';
 
 const props = defineProps({
 	modelValue: {
@@ -98,6 +142,85 @@ const data = ref();
 const multipleSelection = ref();
 // 搜索值
 const search = ref(undefined);
+// 额外的搜索参数
+const extraSearchParams = reactive({} as any);
+
+// 部门树相关
+const showDeptTree = computed(() => {
+	// 仅在选择用户时显示部门树
+	return props.tableConfig.url === '/api/system/user/';
+});
+
+const deptTreeRef = ref<InstanceType<typeof ElTree>>();
+const deptTreeData = ref<any[]>([]);
+const selectedDeptId = ref<number | null>(null);
+const deptTreeProps = {
+	children: 'children',
+	label: 'name',
+	value: 'id',
+};
+
+// 加载部门树数据
+const loadDeptTree = async () => {
+	if (!showDeptTree.value) return;
+	
+	try {
+		const res = await request({
+			url: '/api/system/dept/all_dept/',
+			method: 'get',
+		});
+		if (res && res.data) {
+			// 将扁平数据转换为树形结构
+			deptTreeData.value = XEUtils.toArrayTree(res.data, {
+				parentKey: 'parent',
+				key: 'id',
+				children: 'children',
+			});
+		}
+	} catch (error) {
+		console.error('加载部门树失败:', error);
+	}
+};
+
+// 部门节点点击事件
+const handleDeptNodeClick = (data: any) => {
+	selectedDeptId.value = data.id;
+	// 更新用户列表的过滤参数
+	if (props.tableConfig.extraParams) {
+		props.tableConfig.extraParams.dept = data.id;
+		props.tableConfig.extraParams.show_all = 1;
+	} else {
+		props.tableConfig.extraParams = { dept: data.id, show_all: 1 };
+	}
+	// 重置分页并重新加载
+	pageConfig.page = 1;
+	getDict();
+};
+
+/**
+ * 重置搜索
+ */
+const resetSearch = () => {
+	search.value = undefined;
+	// 清空额外的搜索参数
+	Object.keys(extraSearchParams).forEach((key) => {
+		extraSearchParams[key] = undefined;
+	});
+	// 清空部门选择
+	if (showDeptTree.value) {
+		selectedDeptId.value = null;
+		if (deptTreeRef.value) {
+			deptTreeRef.value.setCurrentKey(null);
+		}
+		if (props.tableConfig.extraParams) {
+			delete props.tableConfig.extraParams.dept;
+			delete props.tableConfig.extraParams.show_all;
+		}
+	}
+	pageConfig.page = 1;
+	getDict();
+};
+
 //表格数据
 const tableData = ref([]);
 // 分页的配置
@@ -203,6 +326,7 @@ const getDict = async () => {
 		limit: pageConfig.limit,
 		search: search.value,
 		...(props.tableConfig.extraParams || {}), // 合并额外的动态参数
+		...extraSearchParams, // 合并额外的搜索参数
 	};
 	const { data, page, limit, total } = await request({
 		url: url,
@@ -320,11 +444,22 @@ const getNodeValues = async () => {
  */
 const visibleChange = async (bool: any) => {
 	if (bool) {
+		// 如果是用户选择，先加载部门树
+		if (showDeptTree.value) {
+			await loadDeptTree();
+		}
 		// 先加载数据
 		await getDict();
 		// 如果有已选择的值，回显选中状态
 		if (props.modelValue) {
 			await getNodeValues();
+		}
+	} else {
+		// 关闭时清空部门选择
+		selectedDeptId.value = null;
+		if (props.tableConfig.extraParams) {
+			delete props.tableConfig.extraParams.dept;
+			delete props.tableConfig.extraParams.show_all;
 		}
 	}
 };
@@ -398,10 +533,42 @@ onMounted(() => {
 	padding: 5px;
 	background-color: #fff;
 }
+
+.selector-container {
+	display: flex;
+	gap: 12px;
+	
+	&.with-dept-tree {
+		.dept-tree-container {
+			width: 200px;
+			border-right: 1px solid #ebeef5;
+			padding-right: 12px;
+			
+			.dept-tree-header {
+				font-weight: 500;
+				font-size: 14px;
+				color: #303133;
+				margin-bottom: 8px;
+				padding-bottom: 8px;
+				border-bottom: 1px solid #ebeef5;
+			}
+		}
+		
+		.content-container {
+			flex: 1;
+			min-width: 0;
+		}
+	}
+}
 </style>
 <style lang="scss">
 .popperClass {
 	height: 320px;
+	
+	&.with-dept-tree {
+		height: 450px;
+		width: 800px !important;
+	}
 }
 
 .el-select-dropdown__wrap {
