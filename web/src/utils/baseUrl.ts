@@ -67,7 +67,12 @@ export const getWsBaseURL = function () {
 			baseURL = location.protocol + '//' + location.hostname + (location.port ? ':' : '') + location.port + baseURL;
 		}
 	} else if (param !== '' || baseURL.startsWith('/')) {
-		baseURL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.hostname + (location.port ? ':' : '') + location.port + baseURL;
+		// 对于相对路径，使用当前页面的协议和域名
+		const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+		const host = location.hostname;
+		// 只在非标准端口时添加端口号（80/443 不需要）
+		const port = location.port && location.port !== '80' && location.port !== '443' ? ':' + location.port : '';
+		baseURL = protocol + host + port + baseURL;
 	}
 	if (!baseURL.endsWith('/')) {
 		baseURL += '/';
