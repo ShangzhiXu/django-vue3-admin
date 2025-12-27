@@ -34,7 +34,15 @@ const viteConfig = defineConfig((mode: ConfigEnv) => {
 			port: env.VITE_PORT as unknown as number,
 			open: false,
 			hmr: true,
+			allowedHosts: ['tongyuinspection.cloud'],
 			proxy: {
+				'/api': {
+					target: env.VITE_API_BACKEND_URL || 'http://localhost:8000',
+					changeOrigin: true,
+					secure: false,
+					ws: true,
+					rewrite: (path) => path.replace(/^\/api/, ''),
+				},
 				'/gitee': {
 					target: 'https://gitee.com',
 					ws: true,

@@ -104,3 +104,6 @@ class MobileStatisticsView(APIView):
             }, status=500, content_type='application/json')
 
 
+
+
+
